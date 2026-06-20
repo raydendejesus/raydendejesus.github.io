@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pinball Table</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 400px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🎱 Pinball Table</h1>
+  <p class="sub">Left / Right arrow keys (or A / D) flip the flippers. Hit bumpers for points. Don't lose the ball!</p>
+  <div class="hud"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">0</b></span><span>Balls: <b id="balls">3</b></span></div>
+  <canvas id="game" width="320" height="480"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best'),
+  ballsEl = document.getElementById('balls'), msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+let best = 0;
+let ball, score, balls, running, raf;
+let leftUp = false, rightUp = false;
+const R = 8, GRAV = 0.22;
+const bumpers = [{ x: 90, y: 130, r: 22 }, { x: 230, y: 130, r: 22 }, { x: 160, y: 210, r: 26 }];
+// flipper pivots
+const flL = { px: 100, py: H - 50, len: 64, rest: 0.35, up: -0.5, ang: 0.35 };
+const flR = { px: W - 100, py: H - 50, len: 64, rest: Math.PI - 0.35, up: Math.PI + 0.5, ang: Math.PI - 0.35 };
+const GAP = 60; // drain gap between flippers bottom
+
+function newBall() {
+  ball = { x: W - 16, y: H - 90, vx: 0, vy: -9 + Math.random() * -2 };
+}
+
+function start() {
+  score = 0; balls = 3; running = true;
+  scoreEl.textContent = 0; ballsEl.textContent = 3; msgEl.textContent = 'Plunge!';
+  newBall(); startBtn.style.display = 'none';
+  cancelAnimationFrame(raf); loop();
+}
+
+function gameOver() {
+  running = false; cancelAnimationFrame(raf);
+  if (score > best) { best = score; bestEl.textContent = best; }
+  msgEl.textContent = '💀 Game Over — score ' + score;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') leftUp = true;
+  if (k === 'arrowright' || k === 'd') rightUp = true;
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') leftUp = false;
+  if (k === 'arrowright' || k === 'd') rightUp = false;
+});
+
+function flipperLine(fl, isLeft) {
+  const target = (isLeft ? (leftUp ? fl.up : fl.rest) : (rightUp ? fl.up : fl.rest));
+  fl.ang += (target - fl.ang) * 0.4;
+  const ex = fl.px + Math.cos(fl.ang) * fl.len;
+  const ey = fl.py + Math.sin(fl.ang) * fl.len;
+  return { x1: fl.px, y1: fl.py, x2: ex, y2: ey, moving: Math.abs(target - fl.ang) > 0.02 && (isLeft ? leftUp : rightUp) };
+}
+
+function collideSeg(seg) {
+  const dx = seg.x2 - seg.x1, dy = seg.y2 - seg.y1;
+  const len2 = dx * dx + dy * dy;
+  let t = ((ball.x - seg.x1) * dx + (ball.y - seg.y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = seg.x1 + t * dx, cy = seg.y1 + t * dy;
+  const ddx = ball.x - cx, ddy = ball.y - cy, dist = Math.hypot(ddx, ddy);
+  if (dist < R + 4) {
+    const nx = ddx / (dist || 1), ny = ddy / (dist || 1);
+    ball.x = cx + nx * (R + 4); ball.y = cy + ny * (R + 4);
+    const dot = ball.vx * nx + ball.vy * ny;
+    ball.vx -= 2 * dot * nx; ball.vy -= 2 * dot * ny;
+    ball.vx *= 0.8; ball.vy *= 0.8;
+    if (seg.moving) { ball.vx += nx * 6; ball.vy += ny * 6; }
+  }
+}
+
+function update() {
+  ball.vy += GRAV;
+  ball.x += ball.vx; ball.y += ball.vy;
+  // walls
+  if (ball.x < R) { ball.x = R; ball.vx = Math.abs(ball.vx) * 0.8; }
+  if (ball.x > W - R) { ball.x = W - R; ball.vx = -Math.abs(ball.vx) * 0.8; }
+  if (ball.y < R) { ball.y = R; ball.vy = Math.abs(ball.vy) * 0.8; }
+  // bumpers
+  for (const b of bumpers) {
+    const dx = ball.x - b.x, dy = ball.y - b.y, d = Math.hypot(dx, dy);
+    if (d < b.r + R) {
+      const nx = dx / (d || 1), ny = dy / (d || 1);
+      ball.x = b.x + nx * (b.r + R); ball.y = b.y + ny * (b.r + R);
+      const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx -= 2 * dot * nx; ball.vy -= 2 * dot * ny;
+      ball.vx = ball.vx * 0.9 + nx * 3; ball.vy = ball.vy * 0.9 + ny * 3;
+      score += 100; scoreEl.textContent = score; b.flash = 6;
+    }
+    if (b.flash) b.flash--;
+  }
+  // angled lower walls funnel toward flippers
+  collideSeg({ x1: 0, y1: H - 160, x2: flL.px, y2: flL.py, moving: false });
+  collideSeg({ x1: W, y1: H - 160, x2: flR.px, y2: flR.py, moving: false });
+  // flippers
+  const sl = flipperLine(flL, true), sr = flipperLine(flR, false);
+  collideSeg(sl); collideSeg(sr);
+  // drain
+  if (ball.y > H + R) {
+    balls--; ballsEl.textContent = balls;
+    if (balls <= 0) { gameOver(); return; }
+    newBall();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  // funnel walls
+  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, H - 160); ctx.lineTo(flL.px, flL.py); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W, H - 160); ctx.lineTo(flR.px, flR.py); ctx.stroke();
+  // bumpers
+  for (const b of bumpers) {
+    ctx.fillStyle = b.flash ? '#fbbf24' : '#a855f7';
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0b1120'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.45, 0, 7); ctx.fill();
+  }
+  // flippers
+  const sl = { x1: flL.px, y1: flL.py, x2: flL.px + Math.cos(flL.ang) * flL.len, y2: flL.py + Math.sin(flL.ang) * flL.len };
+  const sr = { x1: flR.px, y1: flR.py, x2: flR.px + Math.cos(flR.ang) * flR.len, y2: flR.py + Math.sin(flR.ang) * flR.len };
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.moveTo(sl.x1, sl.y1); ctx.lineTo(sl.x2, sl.y2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sr.x1, sr.y1); ctx.lineTo(sr.x2, sr.y2); ctx.stroke();
+  // ball
+  if (ball) { ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(ball.x, ball.y, R, 0, 7); ctx.fill(); }
+}
+
+function loop() { if (!running) return; update(); if (!running) return; draw(); raf = requestAnimationFrame(loop); }
+
+function idle() { ball = { x: W - 16, y: H - 90, vx: 0, vy: 0 }; draw(); }
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mahjong Match</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  #layout{position:relative;}
+  .tile{position:absolute;width:46px;height:60px;border-radius:8px;background:linear-gradient(160deg,#f8fafc,#e2e8f0);border:1px solid #94a3b8;box-shadow:2px 3px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;color:#0b1120;box-sizing:border-box;}
+  .tile.blocked{filter:brightness(.6);cursor:default;}
+  .tile.sel{outline:3px solid #38bdf8;background:linear-gradient(160deg,#bae6fd,#7dd3fc);}
+  .tile.hint{outline:3px solid #fbbf24;}
+  #info{margin-top:12px;font-weight:600;font-size:18px;min-height:24px;}
+  .row{display:flex;gap:10px;margin-top:8px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Mahjong Match</h1>
+<div class="panel"><div id="layout"></div></div>
+<div id="info">Match free pairs of identical tiles.</div>
+<div class="row"><button id="hint">Hint</button><button id="shuffle">Shuffle</button><button id="reset">New Game</button></div>
+<script>
+const FACES=['🀄','🀅','🀆','🐉','🌸','🍃','🌙','☀','🔥','💧','⭐','🎋','🍀','🐢','🦋','⚡'];
+const TW=46, TH=60, GX=50, GY=64, OFF=8;
+const layoutEl=document.getElementById('layout'), info=document.getElementById('info');
+// pyramid-ish layout: list of layers with rows/cols
+let tiles, sel;
+function buildPositions(){
+  // 3-layer simple layout
+  const pos=[];
+  const layerSpecs=[
+    {layer:0, rows:5, cols:8, sr:0, sc:0},
+    {layer:1, rows:3, cols:6, sr:1, sc:1},
+    {layer:2, rows:1, cols:4, sr:2, sc:2}
+  ];
+  for(const L of layerSpecs)for(let r=0;r<L.rows;r++)for(let c=0;c<L.cols;c++)
+    pos.push({layer:L.layer, row:L.sr+r, col:L.sc+c});
+  return pos;
+}
+function init(){
+  let positions=buildPositions();
+  // need even count
+  if(positions.length%2)positions.pop();
+  // assign pairs of faces
+  const n=positions.length;
+  const vals=[];
+  for(let i=0;i<n/2;i++){const f=FACES[i%FACES.length];vals.push(f,f);}
+  shuffle(vals);
+  tiles=positions.map((p,i)=>({...p,face:vals[i],id:i,gone:false}));
+  sel=null;
+  layoutW();render();info.textContent='Match free pairs of identical tiles.';info.style.color='#e2e8f0';
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+function layoutW(){
+  let maxX=0,maxY=0;
+  for(const t of tiles){const x=px(t),y=py(t);maxX=Math.max(maxX,x+TW);maxY=Math.max(maxY,y+TH);}
+  layoutEl.style.width=maxX+'px';layoutEl.style.height=maxY+'px';
+}
+function px(t){return t.col*GX + t.layer*OFF;}
+function py(t){return t.row*GY - t.layer*OFF;}
+function overlaps(a,b){return Math.abs(px(a)-px(b))<TW && Math.abs(py(a)-py(b))<TH;}
+function isFree(t){
+  if(t.gone)return false;
+  // covered if any tile on a higher layer overlaps
+  for(const o of tiles)if(!o.gone&&o.layer>t.layer&&overlaps(t,o))return false;
+  // need left OR right neighbor cell (same layer/row) empty
+  let leftBlocked=false,rightBlocked=false;
+  for(const o of tiles)if(!o.gone&&o.layer===t.layer&&o.id!==t.id&&o.row===t.row){
+    if(o.col===t.col-1)leftBlocked=true;
+    if(o.col===t.col+1)rightBlocked=true;
+  }
+  return !(leftBlocked&&rightBlocked);
+}
+function render(){
+  layoutEl.innerHTML='';
+  // draw lower layers first
+  const sorted=[...tiles].sort((a,b)=>a.layer-b.layer||a.row-b.row);
+  for(const t of sorted){
+    if(t.gone)continue;
+    const d=document.createElement('div');
+    d.className='tile';
+    d.style.left=px(t)+'px';d.style.top=py(t)+'px';d.style.zIndex=t.layer*100+t.row;
+    d.textContent=t.face;
+    if(!isFree(t))d.classList.add('blocked');
+    if(sel&&sel.id===t.id)d.classList.add('sel');
+    if(hintPair.includes(t.id))d.classList.add('hint');
+    d.addEventListener('click',()=>click(t));
+    layoutEl.appendChild(d);
+  }
+}
+function click(t){
+  if(t.gone||!isFree(t))return;
+  if(sel&&sel.id===t.id){sel=null;render();return;}
+  if(sel&&sel.face===t.face){sel.gone=true;t.gone=true;sel=null;render();checkState();return;}
+  sel=t;render();
+}
+function remaining(){return tiles.filter(t=>!t.gone);}
+function freePairsExist(){
+  const free=remaining().filter(isFree);
+  const byFace={};
+  for(const t of free){byFace[t.face]=(byFace[t.face]||0)+1;if(byFace[t.face]>=2)return [free.find(x=>x.face===t.face&&x.id!==t.id),t];}
+  return null;
+}
+function checkState(){
+  if(remaining().length===0){info.textContent='Cleared! 🎉';info.style.color='#86efac';return;}
+  if(!freePairsExist()){info.textContent='No moves — shuffle to continue.';info.style.color='#fbbf24';}
+  else{info.textContent=remaining().length+' tiles left.';info.style.color='#e2e8f0';}
+}
+let hintPair=[];
+document.getElementById('hint').addEventListener('click',()=>{
+  const pair=freePairsExist();
+  if(pair){hintPair=pair.map(t=>t.id);render();setTimeout(()=>{hintPair=[];render();},900);}
+  else{info.textContent='No free pairs — shuffle.';info.style.color='#fbbf24';}
+});
+document.getElementById('shuffle').addEventListener('click',()=>{
+  const rem=remaining();const faces=rem.map(t=>t.face);shuffle(faces);rem.forEach((t,i)=>t.face=faces[i]);sel=null;render();checkState();
+});
+document.getElementById('reset').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

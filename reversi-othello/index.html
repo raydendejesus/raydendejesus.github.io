@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reversi / Othello</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  #board{display:grid;grid-template-columns:repeat(8,50px);gap:3px;background:#065f46;padding:8px;border-radius:12px;}
+  .cell{width:50px;height:50px;background:#047857;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .disc{width:38px;height:38px;border-radius:50%;box-shadow:inset 0 -4px 6px rgba(0,0,0,.35);}
+  .b{background:radial-gradient(circle at 35% 35%,#475569,#0b1120);}
+  .w{background:radial-gradient(circle at 35% 35%,#ffffff,#cbd5e1);}
+  .legal::after{content:"";width:14px;height:14px;border-radius:50%;background:#38bdf8aa;}
+  #score{display:flex;gap:24px;margin-top:12px;font-weight:600;font-size:18px;}
+  #msg{text-align:center;margin-top:10px;min-height:24px;font-weight:600;font-size:18px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;margin-top:8px;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Reversi / Othello</h1>
+<div class="panel"><div id="board"></div></div>
+<div id="score"><span id="sB">⚫ 2</span><span id="sW">⚪ 2</span></div>
+<div id="msg">Your turn (black)</div>
+<button id="reset">New Game</button>
+<script>
+const N=8, boardEl=document.getElementById('board'), msgEl=document.getElementById('msg');
+const DIRS=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+let grid, over, turn; // 1=black(you) 2=white(ai)
+function init(){
+  grid=Array.from({length:N},()=>Array(N).fill(0));
+  grid[3][3]=2;grid[3][4]=1;grid[4][3]=1;grid[4][4]=2;
+  over=false;turn=1;msgEl.style.color='#e2e8f0';
+  render();
+}
+function inB(r,c){return r>=0&&r<N&&c>=0&&c<N;}
+function flips(r,c,player){
+  if(grid[r][c])return [];
+  const opp=player===1?2:1, all=[];
+  for(const [dr,dc] of DIRS){
+    let nr=r+dr,nc=c+dc,line=[];
+    while(inB(nr,nc)&&grid[nr][nc]===opp){line.push([nr,nc]);nr+=dr;nc+=dc;}
+    if(line.length&&inB(nr,nc)&&grid[nr][nc]===player)all.push(...line);
+  }
+  return all;
+}
+function legalMoves(player){
+  const m=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(flips(r,c,player).length)m.push([r,c]);
+  return m;
+}
+function place(r,c,player){
+  const f=flips(r,c,player);if(!f.length)return false;
+  grid[r][c]=player;for(const [fr,fc] of f)grid[fr][fc]=player;
+  return true;
+}
+function counts(){let b=0,w=0;for(const row of grid)for(const v of row){if(v===1)b++;if(v===2)w++;}return [b,w];}
+function render(){
+  boardEl.innerHTML='';
+  const legal=turn===1&&!over?legalMoves(1):[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const cell=document.createElement('div');cell.className='cell';
+    if(grid[r][c]){const d=document.createElement('div');d.className='disc '+(grid[r][c]===1?'b':'w');cell.appendChild(d);}
+    else if(legal.some(m=>m[0]===r&&m[1]===c)){cell.classList.add('legal');cell.addEventListener('click',()=>play(r,c));}
+    boardEl.appendChild(cell);
+  }
+  const [b,w]=counts();
+  document.getElementById('sB').textContent='⚫ '+b;
+  document.getElementById('sW').textContent='⚪ '+w;
+}
+function play(r,c){
+  if(over||turn!==1)return;
+  if(!place(r,c,1))return;
+  turn=2;render();
+  setTimeout(next,450);
+}
+function next(){
+  // handle turns/passes until human can move or game over
+  if(over)return;
+  if(turn===2){
+    const m=legalMoves(2);
+    if(m.length){const mv=aiPick(m);place(mv[0],mv[1],2);}
+    turn=1;render();
+    if(legalMoves(1).length===0){
+      if(legalMoves(2).length===0){return end();}
+      turn=2;msgEl.textContent='You pass — AI moves';render();setTimeout(next,600);return;
+    }
+    msgEl.textContent='Your turn (black)';return;
+  }
+}
+function aiPick(moves){
+  // weight corners and edges
+  const W=(r,c)=>{const corner=(r===0||r===N-1)&&(c===0||c===N-1);const edge=r===0||r===N-1||c===0||c===N-1;return corner?100:edge?5:1;};
+  let best=moves[0],bs=-1;
+  for(const m of moves){const s=W(m[0],m[1])*3+flips(m[0],m[1],2).length+Math.random();if(s>bs){bs=s;best=m;}}
+  return best;
+}
+function end(){
+  over=true;render();
+  const [b,w]=counts();
+  msgEl.textContent=b>w?'You win! 🎉':w>b?'AI wins':'Tie game';
+  msgEl.style.color=b>w?'#86efac':w>b?'#fca5a5':'#e2e8f0';
+}
+document.getElementById('reset').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

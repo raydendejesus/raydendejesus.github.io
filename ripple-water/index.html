@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripple Water</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:16px;margin-bottom:16px;}
+  canvas{width:100%;display:block;border-radius:14px;border:1px solid #1f2937;cursor:pointer;background:#000;touch-action:none;}
+  .controls{display:flex;gap:18px;align-items:center;flex-wrap:wrap;}
+  .controls label{font-size:.85rem;color:#94a3b8;display:flex;gap:8px;align-items:center;}
+  input[type=range]{accent-color:var(--accent);}
+  select{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:6px;}
+  .hint{color:#64748b;font-size:.82rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Ripple Water</h1>
+  <div class="panel"><canvas id="c" width="300" height="200"></canvas></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Damping <input type="range" id="damp" min="80" max="99" value="94"></label>
+      <label>Tint
+        <select id="tint"><option value="0">Blue</option><option value="1">Teal</option><option value="2">Magenta</option><option value="3">Mono</option></select>
+      </label>
+      <span class="hint">Click or drag across the water</span>
+    </div>
+  </div>
+</div>
+<script>
+  const c=document.getElementById('c'),ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  let cur=new Float32Array(W*H),prev=new Float32Array(W*H);
+  const img=ctx.createImageData(W,H);
+  function disturb(x,y,power){
+    x=x|0;y=y|0;
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+      const px=x+dx,py=y+dy;
+      if(px>1&&px<W-1&&py>1&&py<H-1)prev[py*W+px]+=power;
+    }
+  }
+  function step(){
+    const damp=+document.getElementById('damp').value/100;
+    for(let y=1;y<H-1;y++){
+      for(let x=1;x<W-1;x++){
+        const i=y*W+x;
+        let v=(prev[i-1]+prev[i+1]+prev[i-W]+prev[i+W])/2-cur[i];
+        v*=damp;
+        cur[i]=v;
+      }
+    }
+    const tmp=prev;prev=cur;cur=tmp;
+  }
+  function draw(){
+    const tint=+document.getElementById('tint').value;
+    const d=img.data;
+    for(let y=1;y<H-1;y++){
+      for(let x=1;x<W-1;x++){
+        const i=y*W+x;
+        const dx=prev[i-1]-prev[i+1];
+        const h=prev[i];
+        let shade=128+h*4;
+        const hl=Math.max(0,dx*6);
+        let r,g,b;
+        const base=Math.max(0,Math.min(255,shade));
+        if(tint===0){r=base*0.2;g=base*0.5;b=base+hl;}
+        else if(tint===1){r=base*0.1;g=base*0.8+hl*0.5;b=base*0.8+hl;}
+        else if(tint===2){r=base*0.9+hl;g=base*0.2;b=base*0.8+hl;}
+        else{r=g=b=base+hl;}
+        const o=i*4;
+        d[o]=Math.min(255,r);d[o+1]=Math.min(255,g);d[o+2]=Math.min(255,b);d[o+3]=255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+  function loop(){step();draw();requestAnimationFrame(loop);}
+  function pos(e){
+    const r=c.getBoundingClientRect();
+    const t=e.touches?e.touches[0]:e;
+    return [(t.clientX-r.left)/r.width*W,(t.clientY-r.top)/r.height*H];
+  }
+  let down=false;
+  c.addEventListener('mousedown',e=>{down=true;const[x,y]=pos(e);disturb(x,y,400);});
+  c.addEventListener('mousemove',e=>{if(down){const[x,y]=pos(e);disturb(x,y,200);}});
+  window.addEventListener('mouseup',()=>down=false);
+  c.addEventListener('touchstart',e=>{e.preventDefault();const[x,y]=pos(e);disturb(x,y,400);},{passive:false});
+  c.addEventListener('touchmove',e=>{e.preventDefault();const[x,y]=pos(e);disturb(x,y,250);},{passive:false});
+  // initial ripple
+  disturb(W/2,H/2,500);
+  loop();
+</script>
+</body>
+</html>

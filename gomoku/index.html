@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gomoku</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:12px;}
+  #board{position:relative;background:#caa472;border-radius:8px;cursor:pointer;}
+  #board canvas{display:block;border-radius:8px;}
+  #msg{text-align:center;margin-top:12px;font-weight:600;font-size:18px;min-height:24px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;margin-top:8px;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Gomoku</h1>
+<div class="panel"><div id="board"><canvas id="cv"></canvas></div></div>
+<div id="msg">Your turn (black). Get five in a row.</div>
+<button id="reset">New Game</button>
+<script>
+const N=15, GAP=34, PAD=20, SIZE=PAD*2+GAP*(N-1);
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), msg=document.getElementById('msg');
+cv.width=SIZE;cv.height=SIZE;
+let grid, over, turn; // 1 black(you), 2 white(ai)
+function init(){grid=Array.from({length:N},()=>Array(N).fill(0));over=false;turn=1;msg.textContent='Your turn (black). Get five in a row.';msg.style.color='#e2e8f0';draw();}
+function draw(){
+  ctx.fillStyle='#caa472';ctx.fillRect(0,0,SIZE,SIZE);
+  ctx.strokeStyle='#3b2f1e';ctx.lineWidth=1;
+  for(let i=0;i<N;i++){
+    ctx.beginPath();ctx.moveTo(PAD,PAD+i*GAP);ctx.lineTo(SIZE-PAD,PAD+i*GAP);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(PAD+i*GAP,PAD);ctx.lineTo(PAD+i*GAP,SIZE-PAD);ctx.stroke();
+  }
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(grid[r][c]){
+    const x=PAD+c*GAP,y=PAD+r*GAP;
+    const g=ctx.createRadialGradient(x-4,y-4,2,x,y,13);
+    if(grid[r][c]===1){g.addColorStop(0,'#555');g.addColorStop(1,'#0b1120');}else{g.addColorStop(0,'#fff');g.addColorStop(1,'#cbd5e1');}
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,13,0,7);ctx.fill();
+  }
+}
+function win(p){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(grid[r][c]===p)
+    for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+      let k=1;while(k<5){const nr=r+dr*k,nc=c+dc*k;if(nr<0||nr>=N||nc<0||nc>=N||grid[nr][nc]!==p)break;k++;}
+      if(k===5)return true;
+    }
+  return false;
+}
+cv.addEventListener('click',e=>{
+  if(over||turn!==1)return;
+  const rect=cv.getBoundingClientRect();
+  const c=Math.round((e.clientX-rect.left-PAD)/GAP), r=Math.round((e.clientY-rect.top-PAD)/GAP);
+  if(r<0||r>=N||c<0||c>=N||grid[r][c])return;
+  grid[r][c]=1;draw();
+  if(win(1)){end('You win! 🎉','#86efac');return;}
+  if(full()){end('Draw','#e2e8f0');return;}
+  turn=2;msg.textContent='AI thinking...';setTimeout(aiMove,150);
+});
+function full(){return grid.every(row=>row.every(v=>v));}
+function end(t,col){over=true;msg.textContent=t;msg.style.color=col;}
+// scoring heuristic for a hypothetical stone
+function lineScore(r,c,p){
+  let total=0;
+  for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+    let count=1, open=0;
+    let k=1;while(true){const nr=r+dr*k,nc=c+dc*k;if(nr<0||nr>=N||nc<0||nc>=N)break;if(grid[nr][nc]===p){count++;k++;}else{if(grid[nr][nc]===0)open++;break;}}
+    k=1;while(true){const nr=r-dr*k,nc=c-dc*k;if(nr<0||nr>=N||nc<0||nc>=N)break;if(grid[nr][nc]===p){count++;k++;}else{if(grid[nr][nc]===0)open++;break;}}
+    if(count>=5)total+=1000000;
+    else total+=Math.pow(10,count)*(open+1);
+  }
+  return total;
+}
+function aiMove(){
+  if(over)return;
+  let best=null,bestScore=-1;
+  const cand=new Set();
+  let any=false;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(grid[r][c]){any=true;
+    for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const nr=r+dr,nc=c+dc;if(nr>=0&&nr<N&&nc>=0&&nc<N&&!grid[nr][nc])cand.add(nr*N+nc);}}
+  if(!any){grid[7][7]=2;draw();turn=1;msg.textContent='Your turn (black).';return;}
+  for(const idx of cand){
+    const r=idx/N|0,c=idx%N;
+    const att=lineScore(r,c,2), def=lineScore(r,c,1)*0.9;
+    const s=Math.max(att,def)+Math.random();
+    if(s>bestScore){bestScore=s;best=[r,c];}
+  }
+  grid[best[0]][best[1]]=2;draw();
+  if(win(2)){end('AI wins.','#fca5a5');return;}
+  if(full()){end('Draw','#e2e8f0');return;}
+  turn=1;msg.textContent='Your turn (black).';
+}
+document.getElementById('reset').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

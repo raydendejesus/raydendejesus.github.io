@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jetpack Flyer</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 560px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; cursor: pointer; touch-action: none; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🎒 Jetpack Flyer</h1>
+  <p class="sub">Hold mouse / space to fire the jetpack and rise. Dodge the red zappers, grab gold coins.</p>
+  <div class="hud"><span>Distance: <b id="dist">0</b></span><span>💰 <b id="coins">0</b></span><span>Best: <b id="best">0</b></span></div>
+  <canvas id="game" width="540" height="320"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const distEl = document.getElementById('dist'), coinsEl = document.getElementById('coins'),
+  bestEl = document.getElementById('best'), msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+let best = 0;
+let player, thrust, obstacles, coins, particles, dist, coinCount, scroll, running, raf, spawnTimer, coinTimer;
+const PX = 90, PR = 16, SPEED = 4;
+
+function start() {
+  player = { y: H / 2, vy: 0 }; thrust = false;
+  obstacles = []; coins = []; particles = []; dist = 0; coinCount = 0; scroll = 0;
+  spawnTimer = 50; coinTimer = 30;
+  distEl.textContent = 0; coinsEl.textContent = 0;
+  running = true; msgEl.textContent = ''; startBtn.style.display = 'none';
+  cancelAnimationFrame(raf); loop();
+}
+function gameOver() {
+  running = false; cancelAnimationFrame(raf);
+  if (dist > best) { best = dist; bestEl.textContent = best; }
+  msgEl.textContent = '💥 Crashed — distance ' + dist;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+function press() { thrust = true; } function release() { thrust = false; }
+canvas.addEventListener('mousedown', press); window.addEventListener('mouseup', release);
+canvas.addEventListener('touchstart', e => { press(); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchend', e => { release(); e.preventDefault(); }, { passive: false });
+document.addEventListener('keydown', e => { if (e.code === 'Space') { press(); e.preventDefault(); } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
+
+function update() {
+  player.vy += thrust ? -0.55 : 0.4;
+  player.vy = Math.max(-7, Math.min(7, player.vy));
+  player.y += player.vy;
+  if (player.y < PR) { player.y = PR; player.vy = 0; }
+  if (player.y > H - PR) { gameOver(); return; }
+  scroll += SPEED; dist = Math.floor(scroll / 10); distEl.textContent = dist;
+  if (thrust) particles.push({ x: PX - 10, y: player.y + 10, vx: -2 - Math.random() * 2, vy: 1 + Math.random() * 2, life: 14 });
+  for (const p of particles) { p.x += p.vx; p.y += p.vy; p.life--; }
+  particles = particles.filter(p => p.life > 0);
+
+  spawnTimer--;
+  if (spawnTimer <= 0) {
+    spawnTimer = 45 + Math.random() * 50 - Math.min(20, dist / 40);
+    const vert = Math.random() < 0.5;
+    if (vert) { const h = 60 + Math.random() * 90, y = Math.random() * (H - h); obstacles.push({ wx: scroll + W + 20, y, w: 14, h }); }
+    else { const w = 70 + Math.random() * 80, y = 30 + Math.random() * (H - 60); obstacles.push({ wx: scroll + W + 20, y, w, h: 14 }); }
+  }
+  coinTimer--;
+  if (coinTimer <= 0) {
+    coinTimer = 40 + Math.random() * 40;
+    const cy = 40 + Math.random() * (H - 80);
+    for (let i = 0; i < 4; i++) coins.push({ wx: scroll + W + 20 + i * 26, y: cy, got: false });
+  }
+  obstacles = obstacles.filter(o => o.wx - scroll > -60);
+  coins = coins.filter(c => c.wx - scroll > -20 && !c.got);
+  for (const o of obstacles) {
+    const ox = o.wx - scroll;
+    if (PX + PR > ox && PX - PR < ox + o.w && player.y + PR > o.y && player.y - PR < o.y + o.h) { gameOver(); return; }
+  }
+  for (const c of coins) {
+    if (Math.hypot(c.wx - scroll - PX, c.y - player.y) < PR + 8) { c.got = true; coinCount++; coinsEl.textContent = coinCount; }
+  }
+}
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#1f2937'; ctx.fillRect(0, H - 6, W, 6); ctx.fillRect(0, 0, W, 6);
+  for (const p of particles) { ctx.globalAlpha = p.life / 14; ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#ef4444';
+  for (const o of obstacles) ctx.fillRect(o.wx - scroll, o.y, o.w, o.h);
+  for (const c of coins) { ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(c.wx - scroll, c.y, 7, 0, 7); ctx.fill(); }
+  ctx.font = '28px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🧑‍🚀', PX, player.y);
+}
+function loop() { if (!running) return; update(); if (!running) return; draw(); raf = requestAnimationFrame(loop); }
+function idle() { player = { y: H / 2, vy: 0 }; obstacles = []; coins = []; particles = []; scroll = 0; draw(); }
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

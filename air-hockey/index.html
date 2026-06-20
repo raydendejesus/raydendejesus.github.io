@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Hockey</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 380px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; cursor: none; touch-action: none; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🏒 Air Hockey</h1>
+  <p class="sub">Move your mouse to control the bottom paddle. First to 7 goals wins.</p>
+  <div class="hud"><span>AI: <b id="ai">0</b></span><span>You: <b id="you">0</b></span></div>
+  <canvas id="game" width="340" height="500"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const aiEl = document.getElementById('ai'), youEl = document.getElementById('you'),
+  msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+const PR = 26, KR = 14, GOAL = 90, WIN = 7;
+let puck, you, ai, scoreYou, scoreAi, running, raf, prevMouse;
+
+function resetPuck(dir) {
+  puck = { x: W / 2, y: H / 2, vx: 0, vy: dir * 3 };
+}
+function start() {
+  you = { x: W / 2, y: H - 60 }; ai = { x: W / 2, y: 60 };
+  scoreYou = scoreAi = 0; aiEl.textContent = 0; youEl.textContent = 0;
+  resetPuck(Math.random() < 0.5 ? 1 : -1);
+  running = true; msgEl.textContent = ''; startBtn.style.display = 'none';
+  prevMouse = { x: you.x, y: you.y };
+  cancelAnimationFrame(raf); loop();
+}
+function endGame(win) {
+  running = false; cancelAnimationFrame(raf);
+  msgEl.textContent = win ? '🏆 You win ' + scoreYou + '-' + scoreAi : '💀 AI wins ' + scoreAi + '-' + scoreYou;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+function setMouse(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  let mx = (cx - r.left) / r.width * W, my = (cy - r.top) / r.height * H;
+  mx = Math.max(PR, Math.min(W - PR, mx));
+  my = Math.max(H / 2 + PR, Math.min(H - PR, my));
+  if (running) { prevMouse = { x: you.x, y: you.y }; you.x = mx; you.y = my; }
+}
+canvas.addEventListener('mousemove', e => setMouse(e.clientX, e.clientY));
+canvas.addEventListener('touchmove', e => { setMouse(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+
+function paddleHit(p, isYou) {
+  const dx = puck.x - p.x, dy = puck.y - p.y, d = Math.hypot(dx, dy);
+  if (d < PR + KR) {
+    const nx = dx / (d || 1), ny = dy / (d || 1);
+    puck.x = p.x + nx * (PR + KR); puck.y = p.y + ny * (PR + KR);
+    const sp = Math.max(5, Math.hypot(puck.vx, puck.vy));
+    puck.vx = nx * sp; puck.vy = ny * sp;
+    if (isYou) { puck.vx += (you.x - prevMouse.x) * 0.3; puck.vy += (you.y - prevMouse.y) * 0.3; }
+  }
+}
+
+function update() {
+  puck.x += puck.vx; puck.y += puck.vy;
+  puck.vx *= 0.997; puck.vy *= 0.997;
+  // side walls
+  if (puck.x < KR) { puck.x = KR; puck.vx = Math.abs(puck.vx); }
+  if (puck.x > W - KR) { puck.x = W - KR; puck.vx = -Math.abs(puck.vx); }
+  // top/bottom: goal or wall
+  const inGoal = puck.x > W / 2 - GOAL / 2 && puck.x < W / 2 + GOAL / 2;
+  if (puck.y < KR) {
+    if (inGoal) { scoreYou++; youEl.textContent = scoreYou; if (scoreYou >= WIN) return endGame(true); resetPuck(1); return; }
+    puck.y = KR; puck.vy = Math.abs(puck.vy);
+  }
+  if (puck.y > H - KR) {
+    if (inGoal) { scoreAi++; aiEl.textContent = scoreAi; if (scoreAi >= WIN) return endGame(false); resetPuck(-1); return; }
+    puck.y = H - KR; puck.vy = -Math.abs(puck.vy);
+  }
+  // AI: track puck when on its half, else return to center
+  let tx, ty;
+  if (puck.y < H / 2) { tx = puck.x; ty = Math.min(H / 2 - PR, puck.y - 10); }
+  else { tx = W / 2; ty = 60; }
+  ai.x += (tx - ai.x) * 0.08; ai.y += (ty - ai.y) * 0.08;
+  ai.x = Math.max(PR, Math.min(W - PR, ai.x));
+  ai.y = Math.max(PR, Math.min(H / 2 - PR, ai.y));
+  paddleHit(you, true); paddleHit(ai, false);
+  // speed cap
+  const sp = Math.hypot(puck.vx, puck.vy);
+  if (sp > 12) { puck.vx *= 12 / sp; puck.vy *= 12 / sp; }
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, 40, 0, 7); ctx.stroke();
+  // goals
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(W / 2 - GOAL / 2, 2); ctx.lineTo(W / 2 + GOAL / 2, 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W / 2 - GOAL / 2, H - 2); ctx.lineTo(W / 2 + GOAL / 2, H - 2); ctx.stroke();
+  // paddles
+  ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(ai.x, ai.y, PR, 0, 7); ctx.fill();
+  ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(you.x, you.y, PR, 0, 7); ctx.fill();
+  // puck
+  ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(puck.x, puck.y, KR, 0, 7); ctx.fill();
+}
+
+function loop() { if (!running) return; update(); if (!running) return; draw(); raf = requestAnimationFrame(loop); }
+
+function idle() { you = { x: W / 2, y: H - 60 }; ai = { x: W / 2, y: 60 }; resetPuck(1); puck.vy = 0; draw(); }
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

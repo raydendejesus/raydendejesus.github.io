@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mandelbrot Explorer</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:16px;margin-bottom:16px;}
+  canvas{width:100%;display:block;border-radius:14px;border:1px solid #1f2937;cursor:crosshair;background:#000;}
+  .controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  .controls label{font-size:.85rem;color:#94a3b8;display:flex;gap:8px;align-items:center;}
+  select,button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:8px 12px;cursor:pointer;}
+  button:hover{background:var(--accent);color:#04222e;}
+  input[type=range]{accent-color:var(--accent);}
+  .hint{color:#64748b;font-size:.82rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Mandelbrot Explorer</h1>
+  <div class="panel"><canvas id="c" width="600" height="450"></canvas></div>
+  <div class="panel">
+    <div class="controls">
+      <label>Colors
+        <select id="scheme"><option value="0">Electric</option><option value="1">Fire</option><option value="2">Grayscale</option><option value="3">Psychedelic</option></select>
+      </label>
+      <label>Iterations <input type="range" id="iter" min="50" max="800" value="200"> <span id="iterV">200</span></label>
+      <button id="reset">Reset view</button>
+      <span class="hint">Click = zoom in · Shift+Click = zoom out · scroll to zoom</span>
+    </div>
+  </div>
+</div>
+<script>
+  const c=document.getElementById('c'),ctx=c.getContext('2d');
+  const W=c.width,H=c.height;
+  let cx=-0.5,cy=0,scale=3/W; // units per pixel
+  let maxIter=200;
+  function color(i,scheme){
+    if(i>=maxIter)return [0,0,0];
+    const t=i/maxIter;
+    if(scheme===0)return [9+255*t|0,30+180*Math.sin(t*3)|0,180+75*Math.cos(t*5)|0];
+    if(scheme===1)return [255*Math.min(1,t*1.6)|0,255*Math.max(0,t*1.6-0.5)|0,255*Math.max(0,t*1.6-1.1)|0];
+    if(scheme===2){const v=255*t|0;return [v,v,v];}
+    return [128+127*Math.sin(t*20)|0,128+127*Math.sin(t*20+2)|0,128+127*Math.sin(t*20+4)|0];
+  }
+  function render(){
+    const scheme=+document.getElementById('scheme').value;
+    const img=ctx.createImageData(W,H),d=img.data;
+    for(let py=0;py<H;py++){
+      const y0=cy+(py-H/2)*scale;
+      for(let px=0;px<W;px++){
+        const x0=cx+(px-W/2)*scale;
+        let x=0,y=0,i=0;
+        while(x*x+y*y<=4&&i<maxIter){const xt=x*x-y*y+x0;y=2*x*y+y0;x=xt;i++;}
+        const [r,g,b]=color(i,scheme);
+        const o=(py*W+px)*4;d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+  function zoomAt(px,py,factor){
+    cx=cx+(px-W/2)*scale;cy=cy+(py-H/2)*scale;scale*=factor;render();
+  }
+  c.addEventListener('click',e=>{
+    const r=c.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width*W,py=(e.clientY-r.top)/r.height*H;
+    zoomAt(px,py,e.shiftKey?2:0.5);
+  });
+  c.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const r=c.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width*W,py=(e.clientY-r.top)/r.height*H;
+    zoomAt(px,py,e.deltaY>0?1.25:0.8);
+  },{passive:false});
+  document.getElementById('scheme').onchange=render;
+  document.getElementById('iter').oninput=e=>{maxIter=+e.target.value;document.getElementById('iterV').textContent=maxIter;render();};
+  document.getElementById('reset').onclick=()=>{cx=-0.5;cy=0;scale=3/W;render();};
+  render();
+</script>
+</body>
+</html>

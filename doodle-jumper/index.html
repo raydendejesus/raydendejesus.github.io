@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doodle Jumper</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 400px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>⬆️ Doodle Jumper</h1>
+  <p class="sub">Arrow keys / A-D or tilt with mouse to steer. Auto-jump on platforms. Don't fall off the bottom!</p>
+  <div class="hud"><span>Height: <b id="score">0</b></span><span>Best: <b id="best">0</b></span></div>
+  <canvas id="game" width="360" height="480"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best'),
+  msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+let best = 0;
+let player, platforms, score, running, raf, camY, keys;
+const JUMP = -12, GRAV = 0.4, PW = 40, PH = 12, PLAYER_W = 32, PLAYER_H = 32;
+
+function makePlatforms() {
+  platforms = [];
+  for (let i = 0; i < 9; i++) {
+    platforms.push({ x: Math.random() * (W - PW), y: H - i * 55 - 30, moving: i > 3 && Math.random() < 0.3, dir: 1 });
+  }
+}
+
+function start() {
+  makePlatforms();
+  player = { x: W / 2 - PLAYER_W / 2, y: H - 80, vx: 0, vy: JUMP };
+  score = 0; camY = 0; running = true; keys = {};
+  scoreEl.textContent = 0; msgEl.textContent = ''; startBtn.style.display = 'none';
+  cancelAnimationFrame(raf); loop();
+}
+
+function gameOver() {
+  running = false; cancelAnimationFrame(raf);
+  if (score > best) { best = score; bestEl.textContent = best; }
+  msgEl.textContent = '💀 Game Over — height ' + score;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') keys.left = true;
+  if (k === 'arrowright' || k === 'd') keys.right = true;
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') keys.left = false;
+  if (k === 'arrowright' || k === 'd') keys.right = false;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!running) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / r.width * W;
+  player.targetX = mx - PLAYER_W / 2;
+});
+
+function update() {
+  if (keys.left) player.vx = -6;
+  else if (keys.right) player.vx = 6;
+  else if (player.targetX != null) player.vx = (player.targetX - player.x) * 0.3;
+  else player.vx = 0;
+  player.x += player.vx;
+  if (player.x < -PLAYER_W) player.x = W;
+  if (player.x > W) player.x = -PLAYER_W;
+  player.vy += GRAV; player.y += player.vy;
+
+  // scroll
+  if (player.y < H / 2) {
+    const dy = H / 2 - player.y;
+    player.y = H / 2;
+    for (const p of platforms) p.y += dy;
+    score += Math.round(dy); scoreEl.textContent = score;
+  }
+  // platform collision (falling only)
+  if (player.vy > 0) {
+    for (const p of platforms) {
+      if (player.x + PLAYER_W > p.x && player.x < p.x + PW &&
+          player.y + PLAYER_H > p.y && player.y + PLAYER_H < p.y + PH + player.vy) {
+        player.vy = JUMP;
+      }
+    }
+  }
+  // moving platforms
+  for (const p of platforms) {
+    if (p.moving) { p.x += p.dir * 1.5; if (p.x < 0 || p.x > W - PW) p.dir *= -1; }
+  }
+  // recycle
+  for (const p of platforms) {
+    if (p.y > H) {
+      p.y -= H + Math.random() * 20; p.x = Math.random() * (W - PW);
+      p.moving = score > 800 && Math.random() < 0.35; p.dir = Math.random() < 0.5 ? 1 : -1;
+    }
+  }
+  if (player.y > H) gameOver();
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  for (const p of platforms) {
+    ctx.fillStyle = p.moving ? '#f59e0b' : '#22c55e';
+    ctx.fillRect(p.x, p.y, PW, PH);
+  }
+  ctx.font = PLAYER_H + 'px serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('😺', player.x, player.y);
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  if (!running) return;
+  draw();
+  raf = requestAnimationFrame(loop);
+}
+
+function idle() {
+  makePlatforms();
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  for (const p of platforms) { ctx.fillStyle = '#22c55e'; ctx.fillRect(p.x, p.y, PW, PH); }
+}
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

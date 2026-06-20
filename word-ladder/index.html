@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Ladder</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:18px;width:320px;text-align:center;}
+  .goal{font-size:20px;font-weight:600;margin:6px 0;}
+  .goal span{color:#38bdf8;letter-spacing:3px;}
+  #chain{list-style:none;padding:0;margin:14px 0;}
+  #chain li{letter-spacing:6px;font-size:24px;font-weight:700;padding:4px 0;text-transform:uppercase;}
+  #chain li.start{color:#fbbf24;}#chain li.end{color:#86efac;}
+  input{text-transform:uppercase;letter-spacing:6px;font-size:22px;text-align:center;width:160px;padding:8px;background:#0b1120;border:1px solid #1f2937;border-radius:10px;color:#e2e8f0;font-family:inherit;}
+  #msg{min-height:24px;margin-top:10px;font-weight:600;}
+  .row{display:flex;gap:10px;margin-top:10px;justify-content:center;flex-wrap:wrap;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Word Ladder</h1>
+<div class="panel">
+  <div class="goal">Turn <span id="gStart"></span> into <span id="gEnd"></span></div>
+  <ul id="chain"></ul>
+  <input id="entry" maxlength="4" autocomplete="off" placeholder="next word">
+  <div id="msg"></div>
+  <div class="row"><button id="submit">Add</button><button id="undo">Undo</button><button id="hint">Hint</button><button id="new">New Puzzle</button></div>
+</div>
+<script>
+const DICT=new Set(("able acid aged also area army away baby back ball band bank base bath bear beat been beer bell belt bend best bird blow blue boat body bone book boot born boss both bowl bulk burn bush busy cake call calm came camp card care case cash cast cell cent chip city clip club coal coat code cold come cook cool cope copy core cost crew crop dark data date dawn days dead deal dean dear debt deep deny desk dial dirt dish disk does done door dose down draw drew drop drug dual duke dust duty each earn ease east easy edge else even ever evil exit face fact fade fail fair fall farm fast fate fear feed feel feet fell felt file fill film find fine fire firm fish five flat flow food foot ford form fort four free from fuel full fund gain game gate gave gear gene gift girl give glad goal goat goes gold golf gone good gray grew grey grow gulf hair half hall hand hang hard harm hate have head hear heat held hell help here hero high hill hire hold hole holy home hope host hour huge hung hunt hurt idea inch into iron item jack jane jazz join jump jury just keen keep kept kick kill kind king knee knew know lack lady laid lake land lane last late lawn lazy lead leaf lean left lend less life lift like line link list live load loan lock logo long look lord lose loss lost love luck made mail main make male mall many mark mass mate math meal mean meat meet melt menu mere mile milk mill mind mine miss mode mood moon more most move much must name navy near neat neck need news next nice nine none noon nose note noun okay once only onto open oral oven over pace pack page paid pain pair pale palm park part pass past path peak pick pile pine pink pipe plan play plot plug plus poem poet pole poll pool poor port pose post pour pull pure push race rail rain rank rare rate read real rear rely rent rest rice rich ride ring rise risk road rock role roll roof room root rope rose rule rush safe said sail sake sale salt same sand save seal seat seed seek seem seen self sell send sent sept ship shoe shop shot show shut sick side sign silk sing sink site size skin skip slip slow snap snow soap sock soft soil sold sole some song soon sort soul soup spin spot star stay stem step stop such suit sure swim tail take tale talk tall tank tape task team tear tell tend term test text than that them then they thin this thus tide tidy tied tile till time tiny tone tony took tool tour town trap tree trim trip true tube tune turn twin type unit upon used user vary vast very vice view vote wage wait wake walk wall want ward warm wash wave ways weak wear week well went were west what when whom wide wife wild will wind wine wing wipe wire wise wish with wood wool word wore work yard yeah year your zero zone zoom".split(" ")));
+function neighbors(w){const out=[];for(let i=0;i<w.length;i++)for(let cc=97;cc<=122;cc++){const ch=String.fromCharCode(cc);if(ch===w[i])continue;const n=w.slice(0,i)+ch+w.slice(i+1);if(DICT.has(n))out.push(n);}return out;}
+function bfs(start,end){const q=[[start]],seen=new Set([start]);while(q.length){const path=q.shift();const last=path[path.length-1];if(last===end)return path;for(const n of neighbors(last))if(!seen.has(n)){seen.add(n);q.push([...path,n]);}}return null;}
+let start,end,chain,solution;
+const words4=[...DICT].filter(w=>w.length===4);
+function newPuzzle(){
+  for(let t=0;t<500;t++){
+    start=words4[Math.floor(Math.random()*words4.length)];
+    end=words4[Math.floor(Math.random()*words4.length)];
+    if(start===end)continue;
+    const p=bfs(start,end);
+    if(p&&p.length>=4&&p.length<=6){solution=p;break;}
+  }
+  chain=[start];
+  document.getElementById('gStart').textContent=start.toUpperCase();
+  document.getElementById('gEnd').textContent=end.toUpperCase();
+  document.getElementById('msg').textContent='';
+  render();
+}
+function diff(a,b){let d=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i])d++;return d;}
+function render(){
+  const ul=document.getElementById('chain');ul.innerHTML='';
+  chain.forEach((w,i)=>{const li=document.createElement('li');li.textContent=w;if(i===0)li.className='start';if(w===end)li.className='end';ul.appendChild(li);});
+}
+function submit(){
+  const w=document.getElementById('entry').value.toLowerCase().trim();
+  document.getElementById('entry').value='';
+  const msg=document.getElementById('msg');msg.style.color='#fca5a5';
+  if(w.length!==start.length){msg.textContent='Must be '+start.length+' letters';return;}
+  if(!DICT.has(w)){msg.textContent='Not in dictionary';return;}
+  if(diff(chain[chain.length-1],w)!==1){msg.textContent='Change exactly one letter';return;}
+  chain.push(w);render();
+  if(w===end){msg.style.color='#86efac';msg.textContent='You did it in '+(chain.length-1)+' steps! 🎉 (best '+(solution.length-1)+')';}
+  else{msg.style.color='#94a3b8';msg.textContent='';}
+}
+document.getElementById('submit').addEventListener('click',submit);
+document.getElementById('entry').addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+document.getElementById('undo').addEventListener('click',()=>{if(chain.length>1){chain.pop();render();document.getElementById('msg').textContent='';}});
+document.getElementById('hint').addEventListener('click',()=>{
+  const path=bfs(chain[chain.length-1],end);
+  const msg=document.getElementById('msg');
+  if(path&&path.length>1){msg.style.color='#38bdf8';msg.textContent='Try: '+path[1].toUpperCase();}
+  else{msg.style.color='#fca5a5';msg.textContent='No path from here — undo a step';}
+});
+document.getElementById('new').addEventListener('click',newPuzzle);
+newPuzzle();
+</script>
+</body>
+</html>

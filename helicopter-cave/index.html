@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helicopter Cave</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 560px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; cursor: pointer; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🚁 Helicopter Cave</h1>
+  <p class="sub">Hold mouse / space to rise, release to fall. Fly through the cave and dodge the blocks.</p>
+  <div class="hud"><span>Distance: <b id="score">0</b></span><span>Best: <b id="best">0</b></span></div>
+  <canvas id="game" width="540" height="320"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best'),
+  msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+let best = 0;
+let heli, thrusting, running, raf, dist, scroll, ceilingPts, floorPts, blocks, blockTimer, gapCY, gapH;
+const HX = 110, HW = 30, HH = 16, SPEED = 3.2;
+
+function start() {
+  heli = { y: H / 2, vy: 0 };
+  thrusting = false; running = true; dist = 0; scroll = 0;
+  gapCY = H / 2; gapH = 150;
+  ceilingPts = []; floorPts = [];
+  for (let x = 0; x <= W + 20; x += 20) { pushTerrain(); }
+  blocks = []; blockTimer = 60;
+  scoreEl.textContent = 0; msgEl.textContent = ''; startBtn.style.display = 'none';
+  cancelAnimationFrame(raf); loop();
+}
+function pushTerrain() {
+  gapCY += (Math.random() - 0.5) * 26;
+  gapH -= 0.05;
+  gapH = Math.max(90, gapH);
+  gapCY = Math.max(gapH / 2 + 10, Math.min(H - gapH / 2 - 10, gapCY));
+  ceilingPts.push(gapCY - gapH / 2);
+  floorPts.push(gapCY + gapH / 2);
+}
+
+function gameOver() {
+  running = false; cancelAnimationFrame(raf);
+  if (dist > best) { best = dist; bestEl.textContent = best; }
+  msgEl.textContent = '💥 Crashed — distance ' + dist;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+
+function press() { thrusting = true; }
+function release() { thrusting = false; }
+canvas.addEventListener('mousedown', press); window.addEventListener('mouseup', release);
+canvas.addEventListener('touchstart', e => { press(); e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchend', e => { release(); e.preventDefault(); }, { passive: false });
+document.addEventListener('keydown', e => { if (e.code === 'Space') { press(); e.preventDefault(); } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') release(); });
+
+function terrainAt(px) {
+  const idx = Math.floor((px + scroll) / 20);
+  if (idx < 0 || idx >= ceilingPts.length) return { c: 0, f: H };
+  return { c: ceilingPts[idx], f: floorPts[idx] };
+}
+
+function update() {
+  heli.vy += thrusting ? -0.5 : 0.4;
+  heli.vy = Math.max(-6, Math.min(6, heli.vy));
+  heli.y += heli.vy;
+  scroll += SPEED; dist = Math.floor(scroll / 10); scoreEl.textContent = dist;
+  // extend terrain
+  while ((ceilingPts.length) * 20 < scroll + W + 40) pushTerrain();
+  // blocks
+  blockTimer--;
+  if (blockTimer <= 0) {
+    blockTimer = 50 + Math.random() * 50;
+    const t = terrainAt(W + scroll - scroll); // at right edge
+    const idx = Math.floor((scroll + W) / 20);
+    if (idx < ceilingPts.length) {
+      const c = ceilingPts[idx], f = floorPts[idx];
+      const by = c + 20 + Math.random() * (f - c - 60);
+      blocks.push({ wx: scroll + W, y: by, w: 18, h: 36 });
+    }
+  }
+  blocks = blocks.filter(b => b.wx - scroll > -40);
+  // collision with terrain
+  const tc = terrainAt(HX), tcR = terrainAt(HX + HW);
+  if (heli.y - HH / 2 < Math.min(tc.c, tcR.c) || heli.y + HH / 2 > Math.max(tc.f, tcR.f)) { gameOver(); return; }
+  // collision blocks
+  for (const b of blocks) {
+    const bx = b.wx - scroll;
+    if (HX + HW > bx && HX < bx + b.w && heli.y + HH / 2 > b.y && heli.y - HH / 2 < b.y + b.h) { gameOver(); return; }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  // terrain
+  ctx.fillStyle = '#1f2937';
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  for (let x = 0; x <= W; x += 20) { const t = terrainAt(x); ctx.lineTo(x, t.c); }
+  ctx.lineTo(W, 0); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 20) { const t = terrainAt(x); ctx.lineTo(x, t.f); }
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+  // blocks
+  ctx.fillStyle = '#ef4444';
+  for (const b of blocks) ctx.fillRect(b.wx - scroll, b.y, b.w, b.h);
+  // heli
+  ctx.font = '22px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🚁', HX + HW / 2, heli.y);
+}
+
+function loop() { if (!running) return; update(); if (!running) return; draw(); raf = requestAnimationFrame(loop); }
+
+function idle() {
+  scroll = 0; gapCY = H / 2; gapH = 150; ceilingPts = []; floorPts = []; blocks = [];
+  for (let x = 0; x <= W + 20; x += 20) pushTerrain();
+  heli = { y: H / 2, vy: 0 }; draw();
+}
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

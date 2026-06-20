@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Case Converter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:780px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  textarea{width:100%;min-height:130px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-size:1rem;resize:vertical;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  button{background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px;cursor:pointer;font-weight:600;}
+  button:hover{background:var(--accent);color:#04222e;}
+  .copy{background:var(--accent);color:#04222e;border:none;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Case Converter</h1>
+  <div class="panel">
+    <textarea id="txt" placeholder="Type or paste text...">Hello World example text</textarea>
+    <button class="copy" id="copy">Copy result</button>
+  </div>
+  <div class="panel">
+    <div class="grid">
+      <button data-c="upper">UPPERCASE</button>
+      <button data-c="lower">lowercase</button>
+      <button data-c="title">Title Case</button>
+      <button data-c="sentence">Sentence case</button>
+      <button data-c="camel">camelCase</button>
+      <button data-c="pascal">PascalCase</button>
+      <button data-c="snake">snake_case</button>
+      <button data-c="kebab">kebab-case</button>
+      <button data-c="constant">CONSTANT_CASE</button>
+    </div>
+  </div>
+</div>
+<script>
+  const txt=document.getElementById('txt');
+  function words(s){return s.replace(/[_\-]+/g,' ').replace(/([a-z0-9])([A-Z])/g,'$1 $2').trim().split(/\s+/).filter(Boolean);}
+  const conv={
+    upper:s=>s.toUpperCase(),
+    lower:s=>s.toLowerCase(),
+    title:s=>words(s).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(' '),
+    sentence:s=>{const l=s.toLowerCase();return l.replace(/(^\s*\w|[.!?]\s*\w)/g,c=>c.toUpperCase());},
+    camel:s=>words(s).map((w,i)=>i===0?w.toLowerCase():w[0].toUpperCase()+w.slice(1).toLowerCase()).join(''),
+    pascal:s=>words(s).map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(''),
+    snake:s=>words(s).map(w=>w.toLowerCase()).join('_'),
+    kebab:s=>words(s).map(w=>w.toLowerCase()).join('-'),
+    constant:s=>words(s).map(w=>w.toUpperCase()).join('_')
+  };
+  document.querySelectorAll('button[data-c]').forEach(b=>{
+    b.onclick=()=>{txt.value=conv[b.dataset.c](txt.value);};
+  });
+  document.getElementById('copy').onclick=async()=>{
+    try{await navigator.clipboard.writeText(txt.value);}catch(e){txt.select();document.execCommand('copy');}
+    const b=document.getElementById('copy');b.textContent='Copied!';setTimeout(()=>b.textContent='Copy result',1000);
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kakuro</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  #grid{display:grid;gap:1px;background:#1f2937;}
+  .c{width:52px;height:52px;box-sizing:border-box;position:relative;}
+  .block{background:#0b1120;}
+  .clue{background:#0b1120;font-size:12px;color:#94a3b8;}
+  .clue .d{position:absolute;bottom:3px;left:5px;}
+  .clue .r{position:absolute;top:3px;right:5px;}
+  .clue::after{content:"";position:absolute;inset:0;background:linear-gradient(to top right,transparent calc(50% - 1px),#475569,transparent calc(50% + 1px));}
+  .cell{background:#1e293b;}
+  .cell input{width:100%;height:100%;border:none;background:transparent;color:#e2e8f0;font-size:22px;text-align:center;font-family:inherit;outline:none;}
+  .cell.err input{color:#f87171;}
+  .cell.ok{background:#14532d;}
+  #info{margin-top:12px;font-weight:600;font-size:18px;min-height:24px;}
+  .row{display:flex;gap:10px;margin-top:8px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Kakuro</h1>
+<div class="panel"><div id="grid"></div></div>
+<div id="info">Fill cells so each run sums to its clue, no repeats.</div>
+<div class="row"><button id="check">Check</button><button id="solve">Solve</button><button id="clear">Clear</button></div>
+<script>
+// Layout: B=block, [rightSum,downSum] clue, '.'=entry. Solution provided for validation.
+// 5x5 puzzle
+const B='B';
+const layout=[
+  [B, ['', 8], ['', 14], B, B],
+  [[11, ''], '.', '.', ['', 12], B],
+  [[10, ''], '.', '.', '.', ['', 9]],
+  [B, [14, ''], '.', '.', '.'],
+  [B, B, [8, ''], '.', '.'],
+];
+</script>
+<script>
+const SOL={'1,1':3,'1,2':8,'2,1':5,'2,2':1,'2,3':4,'3,2':5,'3,3':1,'3,4':8,'4,3':7,'4,4':1};
+const gridEl=document.getElementById('grid');
+const R=layout.length, C=layout[0].length;
+let inputs={};
+function isEntry(r,c){return layout[r][c]==='.';}
+function build(){
+  gridEl.style.gridTemplateColumns='repeat('+C+',52px)';
+  gridEl.innerHTML='';inputs={};
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const v=layout[r][c];const d=document.createElement('div');
+    if(v===B){d.className='c block';}
+    else if(v==='.'){d.className='c cell';const inp=document.createElement('input');inp.maxLength=1;inp.dataset.r=r;inp.dataset.c=c;
+      inp.addEventListener('input',()=>{inp.value=inp.value.replace(/[^1-9]/g,'');live();});
+      d.appendChild(inp);inputs[r+','+c]=inp;}
+    else{d.className='c clue';const [right,down]=v;
+      const dn=document.createElement('span');dn.className='d';dn.textContent=down||'';
+      const rt=document.createElement('span');rt.className='r';rt.textContent=right||'';
+      d.appendChild(dn);d.appendChild(rt);}
+    gridEl.appendChild(d);
+  }
+}
+function runs(){
+  // gather horizontal & vertical runs with their clue sums
+  const list=[];
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const v=layout[r][c];
+    if(Array.isArray(v)){
+      const [right,down]=v;
+      if(right){const cells=[];let cc=c+1;while(cc<C&&isEntry(r,cc)){cells.push([r,cc]);cc++;}list.push({sum:right,cells});}
+      if(down){const cells=[];let rr=r+1;while(rr<R&&isEntry(rr,c)){cells.push([rr,c]);rr++;}list.push({sum:down,cells});}
+    }
+  }
+  return list;
+}
+function live(){
+  // mark errors: duplicate or oversum in any run
+  for(const k in inputs)inputs[k].parentElement.classList.remove('err','ok');
+  const rl=runs();let allFilled=true,valid=true;
+  for(const run of rl){
+    const vals=run.cells.map(([r,c])=>inputs[r+','+c].value);
+    const nums=vals.filter(v=>v).map(Number);
+    const filled=vals.every(v=>v);
+    if(!filled)allFilled=false;
+    const dup=new Set(nums).size!==nums.length;
+    const sum=nums.reduce((a,b)=>a+b,0);
+    const bad=dup||(filled&&sum!==run.sum)||(!filled&&sum>run.sum);
+    if(dup||(filled&&sum!==run.sum)){valid=false;for(const [r,c] of run.cells)if(inputs[r+','+c].value)inputs[r+','+c].parentElement.classList.add('err');}
+  }
+  if(allFilled&&valid){document.getElementById('info').textContent='Solved! 🎉';document.getElementById('info').style.color='#86efac';
+    for(const k in inputs)inputs[k].parentElement.classList.add('ok');}
+  else{document.getElementById('info').textContent='Fill cells so each run sums to its clue, no repeats.';document.getElementById('info').style.color='#e2e8f0';}
+  return allFilled&&valid;
+}
+document.getElementById('check').addEventListener('click',()=>{
+  if(live())return;
+  document.getElementById('info').textContent='Not solved yet — keep going.';document.getElementById('info').style.color='#fbbf24';
+});
+document.getElementById('solve').addEventListener('click',()=>{for(const k in SOL)inputs[k].value=SOL[k];live();});
+document.getElementById('clear').addEventListener('click',()=>{for(const k in inputs)inputs[k].value='';live();});
+build();
+</script>
+</body>
+</html>

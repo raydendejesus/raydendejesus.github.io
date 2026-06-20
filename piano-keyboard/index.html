@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piano Keyboard</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:920px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:18px;}
+  .controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:18px;}
+  .controls label{font-size:.85rem;color:#94a3b8;display:flex;gap:8px;align-items:center;}
+  button{background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:8px 14px;cursor:pointer;}
+  button:hover{filter:brightness(1.2);}
+  .octave{font-size:1.1rem;font-weight:700;color:var(--accent);min-width:30px;text-align:center;}
+  .piano{position:relative;display:flex;height:220px;user-select:none;}
+  .key{position:relative;border:1px solid #0b1120;border-radius:0 0 6px 6px;}
+  .white{background:linear-gradient(#fff,#e2e8f0);width:56px;height:100%;z-index:1;}
+  .white.active{background:linear-gradient(#bae6fd,#7dd3fc);}
+  .black{background:linear-gradient(#1f2937,#000);width:34px;height:60%;margin:0 -17px;z-index:2;color:#94a3b8;}
+  .black.active{background:linear-gradient(#0369a1,#075985);}
+  .key .lbl{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:.7rem;color:#64748b;pointer-events:none;}
+  .black .lbl{color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Piano Keyboard</h1>
+  <div class="panel">
+    <div class="controls">
+      <label>Octave <button id="octDown">−</button><span class="octave" id="octVal">4</span><button id="octUp">+</button></label>
+      <label>Waveform
+        <select id="wave"><option value="sine">Sine</option><option value="triangle">Triangle</option><option value="sawtooth">Saw</option><option value="square">Square</option></select>
+      </label>
+      <span style="color:#64748b;font-size:.85rem">Play with mouse or keys: A W S E D F T G Y H U J K</span>
+    </div>
+    <div class="piano" id="piano"></div>
+  </div>
+</div>
+<script>
+  let ctx,octave=4;
+  const wave=document.getElementById('wave');
+  // semitone offsets from C in one octave; layout
+  const notes=[
+    {n:'C',k:'a',black:false},{n:'C#',k:'w',black:true},
+    {n:'D',k:'s',black:false},{n:'D#',k:'e',black:true},
+    {n:'E',k:'d',black:false},
+    {n:'F',k:'f',black:false},{n:'F#',k:'t',black:true},
+    {n:'G',k:'g',black:false},{n:'G#',k:'y',black:true},
+    {n:'A',k:'h',black:false},{n:'A#',k:'u',black:true},
+    {n:'B',k:'j',black:false},
+    {n:'C2',k:'k',black:false,semi:12}
+  ];
+  function freq(semi){return 440*Math.pow(2,(semi-9)/12);} // semi relative to C(octave)=0 ; A4 reference
+  function play(semiInOct){
+    if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();
+    ctx.resume();
+    const n=semiInOct+(octave-4)*12; // C4 = 0
+    const f=440*Math.pow(2,(n-9)/12);
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=wave.value;o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.35,ctx.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+1.1);
+    o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+1.2);
+  }
+  const piano=document.getElementById('piano');
+  const keyMap={};
+  function build(){
+    piano.innerHTML='';
+    notes.forEach((nt,i)=>{
+      const semi=nt.semi!==undefined?nt.semi:[0,1,2,3,4,5,6,7,8,9,10,11][i];
+      const d=document.createElement('div');
+      d.className='key '+(nt.black?'black':'white');
+      d.innerHTML=`<span class="lbl">${nt.k.toUpperCase()}</span>`;
+      d.dataset.semi=semi;
+      d.onmousedown=()=>{play(semi);d.classList.add('active');};
+      d.onmouseup=()=>d.classList.remove('active');
+      d.onmouseleave=()=>d.classList.remove('active');
+      piano.appendChild(d);
+      keyMap[nt.k]={el:d,semi};
+    });
+  }
+  const down={};
+  document.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(keyMap[k]&&!down[k]){down[k]=true;play(keyMap[k].semi);keyMap[k].el.classList.add('active');}
+  });
+  document.addEventListener('keyup',e=>{
+    const k=e.key.toLowerCase();
+    if(keyMap[k]){down[k]=false;keyMap[k].el.classList.remove('active');}
+  });
+  document.getElementById('octUp').onclick=()=>{if(octave<7){octave++;document.getElementById('octVal').textContent=octave;}};
+  document.getElementById('octDown').onclick=()=>{if(octave>1){octave--;document.getElementById('octVal').textContent=octave;}};
+  build();
+</script>
+</body>
+</html>

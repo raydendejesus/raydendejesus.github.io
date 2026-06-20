@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkers</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  #board{display:grid;grid-template-columns:repeat(8,56px);grid-template-rows:repeat(8,56px);}
+  .sq{width:56px;height:56px;display:flex;align-items:center;justify-content:center;position:relative;}
+  .light{background:#475569;}
+  .dark{background:#1e293b;cursor:pointer;}
+  .piece{width:40px;height:40px;border-radius:50%;box-shadow:inset 0 -4px 6px rgba(0,0,0,.4);}
+  .p1{background:radial-gradient(circle at 35% 35%,#fca5a5,#dc2626);}
+  .p2{background:radial-gradient(circle at 35% 35%,#cbd5e1,#475569);}
+  .king::after{content:"♛";position:absolute;color:#fde68a;font-size:22px;}
+  .sel{outline:3px solid #38bdf8;outline-offset:-3px;}
+  .move{box-shadow:inset 0 0 0 3px #38bdf8;}
+  .move::before{content:"";width:16px;height:16px;border-radius:50%;background:#38bdf8aa;}
+  #msg{text-align:center;margin-top:12px;min-height:24px;font-weight:600;font-size:18px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;margin-top:8px;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Checkers</h1>
+<div class="panel"><div id="board"></div></div>
+<div id="msg">Your turn (red)</div>
+<button id="reset">New Game</button>
+<script>
+const N=8, boardEl=document.getElementById('board'), msgEl=document.getElementById('msg');
+let grid, sel, legal, over, turn;
+// piece: {p:1|2, king:bool} or null
+function init(){
+  grid=Array.from({length:N},()=>Array(N).fill(null));
+  for(let r=0;r<3;r++)for(let c=0;c<N;c++)if((r+c)%2)grid[r][c]={p:2,king:false};
+  for(let r=5;r<8;r++)for(let c=0;c<N;c++)if((r+c)%2)grid[r][c]={p:1,king:false};
+  sel=null;legal=[];over=false;turn=1;
+  msgEl.textContent='Your turn (red)';msgEl.style.color='#e2e8f0';
+  render();
+}
+function inB(r,c){return r>=0&&r<N&&c>=0&&c<N;}
+function dirs(pc){
+  if(pc.king)return [[-1,-1],[-1,1],[1,-1],[1,1]];
+  return pc.p===1?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];
+}
+// returns list of moves for piece at r,c: {to:[r,c], jump:[r,c]|null}
+function pieceMoves(r,c){
+  const pc=grid[r][c];if(!pc)return [];
+  const out=[];
+  for(const [dr,dc] of dirs(pc)){
+    const nr=r+dr,nc=c+dc;
+    if(inB(nr,nc)&&!grid[nr][nc])out.push({from:[r,c],to:[nr,nc],jump:null});
+    const jr=r+2*dr,jc=c+2*dc;
+    if(inB(jr,jc)&&!grid[jr][jc]&&grid[nr]&&grid[nr][nc]&&grid[nr][nc].p!==pc.p)
+      out.push({from:[r,c],to:[jr,jc],jump:[nr,nc]});
+  }
+  return out;
+}
+function allMoves(player){
+  let jumps=[],simple=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(grid[r][c]&&grid[r][c].p===player){
+    for(const m of pieceMoves(r,c)){(m.jump?jumps:simple).push(m);}
+  }
+  return jumps.length?jumps:simple; // forced capture
+}
+function jumpsFrom(r,c){return pieceMoves(r,c).filter(m=>m.jump);}
+function render(){
+  boardEl.innerHTML='';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const sq=document.createElement('div');
+    const dark=(r+c)%2===1;
+    sq.className='sq '+(dark?'dark':'light');
+    const pc=grid[r][c];
+    if(pc){const p=document.createElement('div');p.className='piece p'+pc.p+(pc.king?' king':'');sq.appendChild(p);}
+    if(sel&&sel[0]===r&&sel[1]===c)sq.classList.add('sel');
+    if(legal.some(m=>m.to[0]===r&&m.to[1]===c))sq.classList.add('move');
+    if(dark)sq.addEventListener('click',()=>click(r,c));
+    boardEl.appendChild(sq);
+  }
+}
+function click(r,c){
+  if(over||turn!==1)return;
+  const target=legal.find(m=>m.to[0]===r&&m.to[1]===c);
+  if(target){doMove(target,1);return;}
+  if(grid[r][c]&&grid[r][c].p===1){
+    const moves=allMoves(1).filter(m=>m.from[0]===r&&m.from[1]===c);
+    if(moves.length){sel=[r,c];legal=moves;render();return;}
+  }
+  sel=null;legal=[];render();
+}
+function applyMove(m){
+  const pc=grid[m.from[0]][m.from[1]];
+  grid[m.to[0]][m.to[1]]=pc;grid[m.from[0]][m.from[1]]=null;
+  if(m.jump)grid[m.jump[0]][m.jump[1]]=null;
+  let kinged=false;
+  if(!pc.king&&((pc.p===1&&m.to[0]===0)||(pc.p===2&&m.to[0]===N-1))){pc.king=true;kinged=true;}
+  return kinged;
+}
+function doMove(m,player){
+  const kinged=applyMove(m);
+  // multi-jump continuation
+  if(m.jump&&!kinged){
+    const more=jumpsFrom(m.to[0],m.to[1]);
+    if(more.length){
+      if(player===1){sel=[m.to[0],m.to[1]];legal=more;render();return;}
+      else{render();setTimeout(()=>doMove(more[Math.floor(Math.random()*more.length)],2),350);return;}
+    }
+  }
+  sel=null;legal=[];turn=player===1?2:1;render();
+  checkEnd();
+  if(!over&&turn===2)setTimeout(aiMove,400);
+}
+function checkEnd(){
+  if(allMoves(turn).length===0){
+    over=true;
+    msgEl.textContent=turn===1?'No moves — AI wins':'No moves — You win! 🎉';
+    msgEl.style.color=turn===1?'#fca5a5':'#86efac';
+  }
+}
+function aiMove(){
+  if(over)return;
+  const moves=allMoves(2);if(!moves.length){checkEnd();return;}
+  // prefer jumps (already forced), pick best by simple heuristic
+  let best=moves[0],bestScore=-1e9;
+  for(const m of moves){
+    let s=m.jump?10:0;
+    s+=(m.to[0]); // advance forward
+    if(m.to[0]===N-1)s+=5;
+    s+=Math.random();
+    if(s>bestScore){bestScore=s;best=m;}
+  }
+  doMove(best,2);
+}
+document.getElementById('reset').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

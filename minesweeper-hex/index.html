@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hex Minesweeper</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  #info{margin-top:12px;font-weight:600;font-size:18px;min-height:24px;}
+  .row{display:flex;gap:10px;margin-top:8px;align-items:center;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;}
+  button:hover{border-color:#38bdf8;}
+  canvas{display:block;cursor:pointer;}
+  p.hint{color:#64748b;margin:6px 0;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Hex Minesweeper</h1>
+<div class="panel"><canvas id="cv"></canvas></div>
+<div id="info">Mines: 0</div>
+<p class="hint">Left-click reveal · Right-click flag</p>
+<div class="row"><button id="reset">New Game</button></div>
+<script>
+// Hexagonal grid (pointy-top), axial coords. 6 neighbors.
+const RADIUS=4; // hex map radius -> cells within distance RADIUS of center
+const SIZE=26; // hex size (center to corner)
+const MINES=14;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), info=document.getElementById('info');
+const NB=[[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
+let cells, over, win, started, flags;
+function key(q,r){return q+','+r;}
+function genCoords(){
+  const out=[];
+  for(let q=-RADIUS;q<=RADIUS;q++)for(let r=-RADIUS;r<=RADIUS;r++){
+    const s=-q-r;if(Math.max(Math.abs(q),Math.abs(r),Math.abs(s))<=RADIUS)out.push([q,r]);
+  }
+  return out;
+}
+function init(){
+  const coords=genCoords();
+  cells=new Map();
+  for(const [q,r] of coords)cells.set(key(q,r),{q,r,mine:false,revealed:false,flag:false,count:0});
+  over=false;win=false;started=false;flags=0;
+  layout();draw();info.textContent='Mines: '+MINES+' · Flags: 0';info.style.color='#e2e8f0';
+}
+function placeMines(safeKey){
+  const keys=[...cells.keys()].filter(k=>k!==safeKey);
+  for(let i=keys.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[keys[i],keys[j]]=[keys[j],keys[i]];}
+  for(let i=0;i<MINES;i++)cells.get(keys[i]).mine=true;
+  for(const c of cells.values()){let n=0;for(const [dq,dr] of NB){const nb=cells.get(key(c.q+dq,c.r+dr));if(nb&&nb.mine)n++;}c.count=n;}
+}
+let originX, originY;
+function hexCenter(q,r){
+  // pointy-top axial -> pixel
+  const x=SIZE*Math.sqrt(3)*(q+r/2);
+  const y=SIZE*1.5*r;
+  return [x+originX,y+originY];
+}
+function layout(){
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  originX=0;originY=0;
+  for(const c of cells.values()){const [x,y]=hexCenter(c.q,c.r);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}
+  const pad=SIZE+6;
+  cv.width=(maxX-minX)+pad*2;cv.height=(maxY-minY)+pad*2;
+  originX=-minX+pad;originY=-minY+pad;
+}
+function hexPath(cx,cy){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-90);const x=cx+SIZE*Math.cos(a),y=cy+SIZE*Math.sin(a);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.closePath();
+}
+const COLORS=['#38bdf8','#38bdf8','#86efac','#fbbf24','#fb923c','#f87171','#f472b6','#c084fc','#fff'];
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(const c of cells.values()){
+    const [cx,cy]=hexCenter(c.q,c.r);
+    hexPath(cx,cy);
+    if(c.revealed){ctx.fillStyle=c.mine?'#7f1d1d':'#1e293b';}
+    else{ctx.fillStyle='#334155';}
+    ctx.fill();ctx.strokeStyle='#0b1120';ctx.lineWidth=2;ctx.stroke();
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 18px system-ui';
+    if(c.revealed){
+      if(c.mine){ctx.fillText('💣',cx,cy+1);}
+      else if(c.count>0){ctx.fillStyle=COLORS[c.count]||'#fff';ctx.fillText(c.count,cx,cy+1);}
+    }else if(c.flag){ctx.fillText('🚩',cx,cy+1);}
+  }
+}
+function cellAtPixel(px,py){
+  let best=null,bd=1e9;
+  for(const c of cells.values()){const [cx,cy]=hexCenter(c.q,c.r);const d=(cx-px)**2+(cy-py)**2;if(d<bd){bd=d;best=c;}}
+  if(best){const [cx,cy]=hexCenter(best.q,best.r);if(Math.hypot(cx-px,cy-py)<=SIZE)return best;}
+  return null;
+}
+function reveal(c){
+  if(c.revealed||c.flag)return;
+  c.revealed=true;
+  if(c.mine){over=true;return;}
+  if(c.count===0){for(const [dq,dr] of NB){const nb=cells.get(key(c.q+dq,c.r+dr));if(nb&&!nb.revealed)reveal(nb);}}
+}
+function checkWin(){
+  for(const c of cells.values())if(!c.mine&&!c.revealed)return false;
+  return true;
+}
+cv.addEventListener('click',e=>{
+  if(over)return;
+  const rect=cv.getBoundingClientRect();
+  const c=cellAtPixel(e.clientX-rect.left,e.clientY-rect.top);
+  if(!c)return;
+  if(!started){placeMines(key(c.q,c.r));started=true;}
+  reveal(c);draw();
+  if(over){info.textContent='Boom! You hit a mine. 💥';info.style.color='#fca5a5';for(const x of cells.values())if(x.mine)x.revealed=true;draw();return;}
+  if(checkWin()){over=true;info.textContent='Cleared! You win! 🎉';info.style.color='#86efac';return;}
+  info.textContent='Mines: '+MINES+' · Flags: '+flags;
+});
+cv.addEventListener('contextmenu',e=>{
+  e.preventDefault();if(over)return;
+  const rect=cv.getBoundingClientRect();
+  const c=cellAtPixel(e.clientX-rect.left,e.clientY-rect.top);
+  if(!c||c.revealed)return;
+  c.flag=!c.flag;flags+=c.flag?1:-1;draw();
+  info.textContent='Mines: '+MINES+' · Flags: '+flags;
+});
+document.getElementById('reset').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

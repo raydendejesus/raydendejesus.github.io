@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Switch</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 24px;
+    width: min(94vw, 380px); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .sub { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+  .hud { display: flex; justify-content: space-between; font-size: 14px; color: #cbd5e1; margin-bottom: 10px; padding: 0 4px; }
+  .hud b { color: var(--accent); }
+  canvas { background: #0b1120; border: 1px solid #1f2937; border-radius: 12px; width: 100%; display: block; cursor: pointer; }
+  .msg { margin-top: 14px; font-size: 15px; color: #94a3b8; min-height: 22px; }
+  .row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+  button { font-family: inherit; font-size: 15px; border-radius: 10px; border: 1px solid #1f2937; padding: 10px 16px; background: #0b1120; color: #e2e8f0; cursor: pointer; }
+  button.start { background: var(--accent); color: #04293b; font-weight: 700; border: none; }
+  button.start:hover { filter: brightness(1.1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🎨 Color Switch</h1>
+  <p class="sub">Click / tap / space to flap the ball upward. Pass through each rotating ring only on the matching color. Grab the dots to change color.</p>
+  <div class="hud"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">0</b></span></div>
+  <canvas id="game" width="340" height="480"></canvas>
+  <div class="msg" id="msg">Press Start</div>
+  <div class="row"><button class="start" id="startBtn">Start</button></div>
+</div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const scoreEl = document.getElementById('score'), bestEl = document.getElementById('best'),
+  msgEl = document.getElementById('msg'), startBtn = document.getElementById('startBtn');
+let best = 0;
+const COLORS = ['#ef4444', '#38bdf8', '#22c55e', '#fbbf24'];
+let ball, rings, dots, score, running, raf, camY;
+const R = 9;
+
+function makeRing(y) {
+  return { y, ang: Math.random() * 6, spin: (Math.random() < 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.02), rad: 60 };
+}
+function spawnFrom(topY) {
+  // build rings going up from topY
+  let y = topY;
+  for (let i = 0; i < 3; i++) { y -= 200; rings.push(makeRing(y)); dots.push({ y: y + 100, color: COLORS[(Math.random() * 4) | 0], got: false }); }
+}
+
+function start() {
+  ball = { x: W / 2, y: H - 80, vy: 0, color: COLORS[1] };
+  rings = []; dots = []; score = 0; camY = 0;
+  let y = H - 200; for (let i = 0; i < 3; i++) { rings.push(makeRing(y)); dots.push({ y: y + 100, color: COLORS[(Math.random() * 4) | 0], got: false }); y -= 200; }
+  running = true; scoreEl.textContent = 0; msgEl.textContent = ''; startBtn.style.display = 'none';
+  cancelAnimationFrame(raf); loop();
+}
+
+function gameOver() {
+  running = false; cancelAnimationFrame(raf);
+  if (score > best) { best = score; bestEl.textContent = best; }
+  msgEl.textContent = '💀 Wrong color — score ' + score;
+  startBtn.textContent = 'Play Again'; startBtn.style.display = 'inline-block';
+}
+
+function flap() { if (running) ball.vy = -6; }
+canvas.addEventListener('mousedown', flap);
+canvas.addEventListener('touchstart', e => { flap(); e.preventDefault(); }, { passive: false });
+document.addEventListener('keydown', e => { if (e.code === 'Space') { flap(); e.preventDefault(); } });
+
+function update() {
+  ball.vy += 0.32; ball.y += ball.vy;
+  // camera: keep ball around 60% height
+  const targetCam = ball.y - H * 0.6;
+  if (targetCam < camY) {
+    const d = camY - targetCam; camY = targetCam;
+    score += Math.round(d / 50); // not main scoring; ring passes are
+  }
+  if (ball.y - camY > H + 40) { gameOver(); return; }
+  // walls
+  if (ball.x < R) { ball.x = R; }
+  if (ball.x > W - R) { ball.x = W - R; }
+  // dots
+  for (const d of dots) {
+    if (d.got) continue;
+    if (Math.hypot(ball.x - W / 2, ball.y - d.y) < R + 10) { ball.color = d.color; d.got = true; }
+  }
+  // rings rotate and collision
+  for (const r of rings) {
+    r.ang += r.spin;
+    const dy = ball.y - r.y;
+    if (Math.abs(dy) < R + 5) {
+      // ball is on ring circle band; determine arc color under ball
+      const dx = ball.x - W / 2;
+      const dist = Math.hypot(dx, dy);
+      if (Math.abs(dist - r.rad) < R + 5) {
+        let a = Math.atan2(dy, dx) - r.ang;
+        a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const seg = Math.floor(a / (Math.PI / 2)) % 4;
+        if (COLORS[seg] !== ball.color) { gameOver(); return; }
+      }
+    }
+    // scored when ball passes above ring center
+    if (!r.passed && ball.y < r.y - r.rad) { r.passed = true; score += 1; scoreEl.textContent = score; }
+  }
+  // recycle rings/dots that went below
+  let topY = Math.min(...rings.map(r => r.y));
+  rings = rings.filter(r => r.y - camY < H + 200);
+  dots = dots.filter(d => d.y - camY < H + 200);
+  while (rings.length < 4) { topY -= 200; rings.push(makeRing(topY)); dots.push({ y: topY + 100, color: COLORS[(Math.random() * 4) | 0], got: false }); }
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1120'; ctx.fillRect(0, 0, W, H);
+  for (const r of rings) {
+    const sy = r.y - camY;
+    if (sy < -120 || sy > H + 120) continue;
+    ctx.lineWidth = 12;
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeStyle = COLORS[i];
+      ctx.beginPath();
+      ctx.arc(W / 2, sy, r.rad, r.ang + i * Math.PI / 2, r.ang + (i + 1) * Math.PI / 2);
+      ctx.stroke();
+    }
+  }
+  for (const d of dots) {
+    if (d.got) continue;
+    const sy = d.y - camY;
+    ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(W / 2, sy, 8, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  if (ball) { ctx.fillStyle = ball.color; ctx.beginPath(); ctx.arc(ball.x, ball.y - camY, R, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+function loop() { if (!running) return; update(); if (!running) return; draw(); raf = requestAnimationFrame(loop); }
+
+function idle() {
+  ball = { x: W / 2, y: H - 80, vy: 0, color: COLORS[1] }; camY = 0;
+  rings = [makeRing(H - 200), makeRing(H - 400)]; dots = [];
+  draw();
+}
+startBtn.addEventListener('click', start);
+idle();
+</script>
+</body>
+</html>

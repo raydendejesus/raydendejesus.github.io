@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base64 Encoder / Decoder</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  textarea{width:100%;min-height:120px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:.95rem;resize:vertical;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+  button{background:var(--accent);color:#04222e;border:none;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:.95rem;}
+  button.alt{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .err{color:#f87171;min-height:1.2em;margin-top:8px;font-size:.9rem;}
+  label{display:block;margin-bottom:6px;font-size:.85rem;color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Base64 Encoder / Decoder</h1>
+  <div class="panel">
+    <label>Plain text</label>
+    <textarea id="plain" placeholder="Type text here..."></textarea>
+    <div class="row">
+      <button id="enc">Encode ↓</button>
+      <button class="alt" id="copyPlain">Copy</button>
+    </div>
+  </div>
+  <div class="panel">
+    <label>Base64</label>
+    <textarea id="b64" placeholder="Or paste Base64 here..."></textarea>
+    <div class="row">
+      <button id="dec">↑ Decode</button>
+      <button class="alt" id="copyB64">Copy</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+  const plain=document.getElementById('plain');
+  const b64=document.getElementById('b64');
+  const err=document.getElementById('err');
+  function setErr(m){err.textContent=m||'';}
+  function encode(){
+    setErr('');
+    try{
+      b64.value=btoa(unescape(encodeURIComponent(plain.value)));
+    }catch(e){setErr('Could not encode: '+e.message);}
+  }
+  function decode(){
+    setErr('');
+    try{
+      plain.value=decodeURIComponent(escape(atob(b64.value.trim())));
+    }catch(e){setErr('Invalid Base64 input.');}
+  }
+  async function copy(el){
+    try{await navigator.clipboard.writeText(el.value);}catch(e){el.select();document.execCommand('copy');}
+  }
+  document.getElementById('enc').onclick=encode;
+  document.getElementById('dec').onclick=decode;
+  document.getElementById('copyPlain').onclick=()=>copy(plain);
+  document.getElementById('copyB64').onclick=()=>copy(b64);
+</script>
+</body>
+</html>
