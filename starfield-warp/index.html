@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starfield Warp</title>
+<style>
+  :root{--accent:#38bdf8;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1120;color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;z-index:10;
+    background:rgba(17,24,39,.7);padding:4px 10px;border-radius:8px;}
+  a.back:hover{text-decoration:underline;}
+  canvas{display:block;cursor:crosshair;}
+  .panel{position:fixed;top:14px;right:16px;background:rgba(17,24,39,.85);border:1px solid #1f2937;border-radius:12px;
+    padding:14px;z-index:10;display:flex;flex-direction:column;gap:10px;width:210px;}
+  .panel label{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .hint{position:fixed;bottom:14px;left:0;right:0;text-align:center;color:#475569;font-size:13px;z-index:10;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:8px;padding:7px;font-weight:700;cursor:pointer;font-size:13px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<div class="panel">
+  <label>Warp Speed <span id="spdv">5</span></label>
+  <input type="range" id="speed" min="1" max="30" step="1" value="5">
+  <label>Star Count <span id="cntv">600</span></label>
+  <input type="range" id="count" min="100" max="2000" step="50" value="600">
+  <label>Streak <span id="trv">60%</span></label>
+  <input type="range" id="trail" min="2" max="40" step="1" value="14">
+  <button id="warpBtn">⚡ Hyperdrive</button>
+</div>
+<div class="hint">Move the mouse to steer • Click to nudge the center</div>
+<canvas id="c"></canvas>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H,cx,cy,stars=[],speed=5,count=600,trail=14,warp=false,warpUntil=0;
+let mx=0,my=0;
+const HUES=[200,210,260,45,0];
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;cx=W/2;cy=H/2;mx=cx;my=cy;}
+addEventListener('resize',resize);resize();
+function makeStar(){return{x:(Math.random()-0.5)*W,y:(Math.random()-0.5)*H,z:Math.random()*W,
+  pz:0,hue:HUES[Math.random()*HUES.length|0]};}
+function build(){stars=Array.from({length:count},makeStar);}
+build();
+canvas.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+canvas.addEventListener('click',()=>{warp=true;warpUntil=performance.now()+700;});
+document.getElementById('warpBtn').onclick=()=>{warp=true;warpUntil=performance.now()+1500;};
+function draw(){
+  const now=performance.now();
+  if(warp&&now>warpUntil)warp=false;
+  const eff=speed*(warp?6:1);
+  ctx.fillStyle=`rgba(11,17,32,${1/trail})`;ctx.fillRect(0,0,W,H);
+  const ocx=cx+(mx-cx)*0.25,ocy=cy+(my-cy)*0.25;
+  for(const s of stars){
+    s.pz=s.z;s.z-=eff;
+    if(s.z<1){s.x=(Math.random()-0.5)*W;s.y=(Math.random()-0.5)*H;s.z=W;s.pz=s.z;}
+    const sx=ocx+s.x/s.z*W, sy=ocy+s.y/s.z*W;
+    const px=ocx+s.x/s.pz*W, py=ocy+s.y/s.pz*W;
+    const size=(1-s.z/W)*3+0.3;
+    const light=Math.min(85,40+(1-s.z/W)*60);
+    ctx.strokeStyle=`hsl(${s.hue},90%,${light}%)`;
+    ctx.lineWidth=size;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(sx,sy);ctx.stroke();
+  }
+  requestAnimationFrame(draw);
+}
+document.getElementById('speed').oninput=e=>{speed=+e.target.value;document.getElementById('spdv').textContent=speed;};
+document.getElementById('count').oninput=e=>{count=+e.target.value;document.getElementById('cntv').textContent=count;build();};
+document.getElementById('trail').oninput=e=>{trail=+e.target.value;document.getElementById('trv').textContent=Math.round(100-100/trail)+'%';};
+draw();
+</script>
+</body>
+</html>

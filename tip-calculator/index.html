@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tip Calculator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .back:hover { opacity: 1; }
+  .card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 32px;
+    width: min(92vw, 460px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 24px; font-size: 24px; text-align: center; }
+  .field { margin-bottom: 20px; }
+  label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+  input[type="number"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0b1120;
+    color: #e2e8f0;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .tips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tips button, .tips input {
+    flex: 1;
+    min-width: 56px;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0b1120;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  .tips input { cursor: text; text-align: center; }
+  .tips button.active {
+    background: var(--accent);
+    color: #04293b;
+    font-weight: 700;
+    border-color: var(--accent);
+  }
+  .results {
+    margin-top: 28px;
+    border-top: 1px solid #1f2937;
+    padding-top: 20px;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .row span { color: #94a3b8; font-size: 14px; }
+  .row b { font-size: 20px; }
+  .row.big b { color: var(--accent); font-size: 26px; }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>💵 Tip Calculator</h1>
+  <div class="field">
+    <label for="bill">Bill amount</label>
+    <input type="number" id="bill" min="0" step="0.01" placeholder="0.00" value="">
+  </div>
+  <div class="field">
+    <label>Tip percentage</label>
+    <div class="tips">
+      <button data-tip="10">10%</button>
+      <button data-tip="15">15%</button>
+      <button data-tip="18">18%</button>
+      <button data-tip="20">20%</button>
+      <input type="number" id="customTip" min="0" step="1" placeholder="Custom %">
+    </div>
+  </div>
+  <div class="field">
+    <label for="people">Split between (people)</label>
+    <input type="number" id="people" min="1" step="1" value="1">
+  </div>
+  <div class="results">
+    <div class="row"><span>Tip amount</span><b id="tipAmt">$0.00</b></div>
+    <div class="row"><span>Total</span><b id="total">$0.00</b></div>
+    <div class="row big"><span>Per person</span><b id="perPerson">$0.00</b></div>
+  </div>
+</div>
+<script>
+  const billEl = document.getElementById('bill');
+  const customTipEl = document.getElementById('customTip');
+  const peopleEl = document.getElementById('people');
+  const tipButtons = document.querySelectorAll('.tips button');
+  let tipPercent = 18;
+
+  function fmt(n) {
+    if (!isFinite(n)) n = 0;
+    return '$' + n.toFixed(2);
+  }
+
+  function calc() {
+    const bill = parseFloat(billEl.value) || 0;
+    let people = parseInt(peopleEl.value, 10);
+    if (!people || people < 1) people = 1;
+    const tip = bill * (tipPercent / 100);
+    const total = bill + tip;
+    document.getElementById('tipAmt').textContent = fmt(tip);
+    document.getElementById('total').textContent = fmt(total);
+    document.getElementById('perPerson').textContent = fmt(total / people);
+  }
+
+  function setActive(value) {
+    tipButtons.forEach(b => {
+      b.classList.toggle('active', parseFloat(b.dataset.tip) === value);
+    });
+  }
+
+  tipButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tipPercent = parseFloat(btn.dataset.tip);
+      customTipEl.value = '';
+      setActive(tipPercent);
+      calc();
+    });
+  });
+
+  customTipEl.addEventListener('input', () => {
+    const v = parseFloat(customTipEl.value);
+    if (!isNaN(v)) {
+      tipPercent = v;
+      setActive(NaN);
+    }
+    calc();
+  });
+
+  billEl.addEventListener('input', calc);
+  peopleEl.addEventListener('input', calc);
+
+  setActive(18);
+  calc();
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Rain</title>
+<style>
+  :root{--accent:#38bdf8;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b1120;color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;z-index:10;
+    background:rgba(17,24,39,.7);padding:4px 10px;border-radius:8px;}
+  a.back:hover{text-decoration:underline;}
+  canvas{display:block;}
+  .panel{position:fixed;top:14px;right:16px;background:rgba(17,24,39,.85);border:1px solid #1f2937;border-radius:12px;
+    padding:14px;z-index:10;display:flex;flex-direction:column;gap:10px;width:200px;}
+  .panel label{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;}
+  input[type=range]{width:100%;accent-color:var(--accent);}
+  .swatches{display:flex;gap:8px;}
+  .sw{width:26px;height:26px;border-radius:7px;cursor:pointer;border:2px solid transparent;}
+  .sw.sel{border-color:#fff;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:8px;padding:7px;font-weight:700;cursor:pointer;font-size:13px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<div class="panel">
+  <label>Speed <span id="spdv">1.0×</span></label>
+  <input type="range" id="speed" min="0.3" max="3" step="0.1" value="1">
+  <label>Density <span id="denv">100%</span></label>
+  <input type="range" id="density" min="40" max="160" step="5" value="100">
+  <label>Color</label>
+  <div class="swatches" id="sw"></div>
+  <button id="toggleGlow">Glow: On</button>
+</div>
+<canvas id="c"></canvas>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const CHARS='アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプ0123456789ABCDEFｱｲｳｴｵ:."=*+-<>';
+let cols,drops,fontSize=18,speed=1,density=1,glow=true;
+const COLORS=[['#22c55e','#86efac'],['#38bdf8','#bae6fd'],['#f472b6','#fbcfe8'],['#a78bfa','#ddd6fe'],['#fbbf24','#fde68a']];
+let color=COLORS[0];
+const swEl=document.getElementById('sw');
+COLORS.forEach((c,i)=>{const d=document.createElement('div');d.className='sw'+(i===0?' sel':'');
+  d.style.background=c[0];d.onclick=()=>{color=c;document.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));d.classList.add('sel');};
+  swEl.appendChild(d);});
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;
+  cols=Math.floor(canvas.width/fontSize*density);
+  drops=Array.from({length:cols},()=>Math.random()*-canvas.height/fontSize);}
+addEventListener('resize',resize);resize();
+function draw(){
+  ctx.fillStyle='rgba(11,17,32,0.07)';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.font=fontSize+'px monospace';
+  const step=canvas.width/cols;
+  for(let i=0;i<cols;i++){
+    const ch=CHARS[Math.random()*CHARS.length|0];
+    const x=i*step,y=drops[i]*fontSize;
+    ctx.fillStyle=color[1];
+    if(glow){ctx.shadowColor=color[0];ctx.shadowBlur=10;}else ctx.shadowBlur=0;
+    ctx.fillText(ch,x,y);
+    ctx.shadowBlur=0;ctx.fillStyle=color[0];
+    ctx.fillText(CHARS[Math.random()*CHARS.length|0],x,y-fontSize);
+    if(y>canvas.height&&Math.random()>0.975)drops[i]=0;
+    drops[i]+=speed;
+  }
+  requestAnimationFrame(draw);
+}
+document.getElementById('speed').oninput=e=>{speed=+e.target.value;document.getElementById('spdv').textContent=speed.toFixed(1)+'×';};
+document.getElementById('density').oninput=e=>{density=e.target.value/100;document.getElementById('denv').textContent=e.target.value+'%';resize();};
+document.getElementById('toggleGlow').onclick=e=>{glow=!glow;e.target.textContent='Glow: '+(glow?'On':'Off');};
+draw();
+</script>
+</body>
+</html>

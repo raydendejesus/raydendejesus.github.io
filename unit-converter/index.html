@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Converter</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .back { position: fixed; top: 16px; left: 16px; color: var(--accent);
+    text-decoration: none; font-size: 14px; opacity: 0.8; }
+  .back:hover { opacity: 1; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 18px;
+    padding: 28px; width: min(94vw, 460px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  h1 { margin: 0 0 4px; font-size: 22px; text-align: center; }
+  .sub { margin: 0 0 20px; color: #94a3b8; font-size: 13px; text-align: center; }
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 22px; }
+  .cat { font-family: inherit; font-size: 13px; border-radius: 999px;
+    border: 1px solid #1f2937; padding: 7px 14px; background: #0b1120; color: #cbd5e1; cursor: pointer; }
+  .cat.active { background: var(--accent); color: #04293b; font-weight: 700; border-color: var(--accent); }
+  .field { margin-bottom: 16px; }
+  .field label { font-size: 13px; color: #94a3b8; display: block; margin-bottom: 6px; }
+  .inrow { display: flex; gap: 8px; }
+  input, select { font-family: inherit; font-size: 16px; border-radius: 10px;
+    border: 1px solid #1f2937; padding: 12px; background: #0b1120; color: #e2e8f0; width: 100%; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  select { cursor: pointer; max-width: 150px; }
+  .swap { text-align: center; margin: -6px 0 10px; }
+  .swap button { font-family: inherit; font-size: 18px; background: none; border: none;
+    color: var(--accent); cursor: pointer; padding: 4px 10px; border-radius: 8px; }
+  .swap button:hover { background: #0b1120; }
+  .result { margin-top: 18px; text-align: center; font-size: 15px; color: #cbd5e1; }
+  .result b { color: var(--accent); font-size: 18px; }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>📏 Unit Converter</h1>
+  <p class="sub">Convert length, weight, temperature, volume, speed &amp; data.</p>
+  <div class="cats" id="cats"></div>
+  <div class="field">
+    <label>From</label>
+    <div class="inrow">
+      <input type="number" id="fromVal" value="1" inputmode="decimal">
+      <select id="fromUnit"></select>
+    </div>
+  </div>
+  <div class="swap"><button id="swapBtn" title="Swap">⇅</button></div>
+  <div class="field">
+    <label>To</label>
+    <div class="inrow">
+      <input type="number" id="toVal" readonly>
+      <select id="toUnit"></select>
+    </div>
+  </div>
+  <div class="result" id="result"></div>
+</div>
+<script>
+  // Linear units: value stored in base unit via factor (1 unit = factor base units)
+  const CATS = {
+    Length: { base: 'm', units: { m:1, km:1000, cm:0.01, mm:0.001, mi:1609.344, yd:0.9144, ft:0.3048, in:0.0254 } },
+    Weight: { base: 'kg', units: { kg:1, g:0.001, mg:0.000001, lb:0.45359237, oz:0.028349523, st:6.35029318, t:1000 } },
+    Volume: { base: 'L', units: { L:1, mL:0.001, 'm³':1000, 'gal(US)':3.785411784, 'qt(US)':0.946352946, 'cup(US)':0.2365882365, 'fl oz':0.0295735296 } },
+    Speed: { base: 'm/s', units: { 'm/s':1, 'km/h':0.2777777778, mph:0.44704, knot:0.5144444444, 'ft/s':0.3048 } },
+    Data: { base: 'B', units: { B:1, KB:1024, MB:1048576, GB:1073741824, TB:1099511627776, bit:0.125 } }
+  };
+  // Temperature handled specially
+  const TEMP_UNITS = ['°C', '°F', 'K'];
+
+  const catsEl = document.getElementById('cats');
+  const fromVal = document.getElementById('fromVal');
+  const toVal = document.getElementById('toVal');
+  const fromUnit = document.getElementById('fromUnit');
+  const toUnit = document.getElementById('toUnit');
+  const resultEl = document.getElementById('result');
+  const swapBtn = document.getElementById('swapBtn');
+
+  let current = 'Length';
+  const allCats = [...Object.keys(CATS), 'Temperature'];
+
+  function fillUnits() {
+    const units = current === 'Temperature' ? TEMP_UNITS : Object.keys(CATS[current].units);
+    fromUnit.innerHTML = ''; toUnit.innerHTML = '';
+    units.forEach(u => {
+      fromUnit.add(new Option(u, u));
+      toUnit.add(new Option(u, u));
+    });
+    fromUnit.selectedIndex = 0;
+    toUnit.selectedIndex = Math.min(1, units.length - 1);
+  }
+
+  function toCelsius(v, u) {
+    if (u === '°C') return v;
+    if (u === '°F') return (v - 32) * 5 / 9;
+    return v - 273.15; // K
+  }
+  function fromCelsius(c, u) {
+    if (u === '°C') return c;
+    if (u === '°F') return c * 9 / 5 + 32;
+    return c + 273.15;
+  }
+
+  function fmt(n) {
+    if (!isFinite(n)) return '—';
+    if (n === 0) return '0';
+    const abs = Math.abs(n);
+    if (abs >= 1e9 || abs < 1e-4) return n.toExponential(4);
+    return parseFloat(n.toPrecision(8)).toString();
+  }
+
+  function convert() {
+    const v = parseFloat(fromVal.value);
+    if (isNaN(v)) { toVal.value = ''; resultEl.textContent = ''; return; }
+    const fu = fromUnit.value, tu = toUnit.value;
+    let out;
+    if (current === 'Temperature') {
+      out = fromCelsius(toCelsius(v, fu), tu);
+    } else {
+      const units = CATS[current].units;
+      out = v * units[fu] / units[tu];
+    }
+    toVal.value = fmt(out);
+    resultEl.innerHTML = fmt(v) + ' ' + fu + ' = <b>' + fmt(out) + ' ' + tu + '</b>';
+  }
+
+  allCats.forEach(name => {
+    const b = document.createElement('button');
+    b.className = 'cat' + (name === current ? ' active' : '');
+    b.textContent = name;
+    b.addEventListener('click', () => {
+      current = name;
+      document.querySelectorAll('.cat').forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      fillUnits(); convert();
+    });
+    catsEl.appendChild(b);
+  });
+
+  swapBtn.addEventListener('click', () => {
+    const a = fromUnit.value; fromUnit.value = toUnit.value; toUnit.value = a;
+    if (toVal.value !== '') fromVal.value = toVal.value;
+    convert();
+  });
+
+  [fromVal, fromUnit, toUnit].forEach(el => el.addEventListener('input', convert));
+  fillUnits();
+  convert();
+</script>
+</body>
+</html>

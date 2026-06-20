@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Match</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 6px;font-size:30px;}
+  .top{display:flex;gap:14px;align-items:center;margin-bottom:16px;flex-wrap:wrap;justify-content:center;}
+  .stat{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:6px 16px;text-align:center;}
+  .stat small{display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;}
+  .stat b{font-size:20px;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;}
+  button:hover{filter:brightness(1.1);}
+  select{background:#111827;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:9px 12px;}
+  #board{display:grid;gap:10px;perspective:800px;}
+  .card{width:74px;height:74px;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform .4s;}
+  .card.flip{transform:rotateY(180deg);}
+  .card.matched{transform:rotateY(180deg);}
+  .face{position:absolute;inset:0;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:38px;backface-visibility:hidden;}
+  .front{background:#1f2937;border:1px solid #334155;}
+  .front::after{content:'?';color:#475569;font-size:30px;font-weight:800;}
+  .back{background:#111827;border:1px solid var(--accent);transform:rotateY(180deg);}
+  .card.matched .back{border-color:#22c55e;background:#0f2a1a;}
+  #win{margin-top:16px;font-size:18px;color:#22c55e;min-height:24px;text-align:center;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Memory Match</h1>
+<div class="top">
+  <div class="stat"><small>Moves</small><b id="moves">0</b></div>
+  <div class="stat"><small>Matches</small><b id="matches">0</b></div>
+  <div class="stat"><small>Time</small><b id="time">0s</b></div>
+  <select id="size"><option value="4">4×4 (Easy)</option><option value="6">6×6 (Hard)</option></select>
+  <button id="reset">New Game</button>
+</div>
+<div id="board"></div>
+<div id="win"></div>
+<script>
+const EMOJI=['🍎','🚀','🎸','🐙','🌵','⚡','🍕','🎲','🦊','🌈','🔥','👾','🍩','🎯','🐝','🌙','🍔','🎈'];
+const board=document.getElementById('board');
+let cards,first,lock,moves,matches,total,timer,seconds,started;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function init(){
+  clearInterval(timer);seconds=0;started=false;moves=0;matches=0;first=null;lock=false;
+  const n=+document.getElementById('size').value;total=n*n/2;
+  document.getElementById('moves').textContent=0;document.getElementById('matches').textContent=0;
+  document.getElementById('time').textContent='0s';document.getElementById('win').textContent='';
+  const pool=shuffle(EMOJI.slice()).slice(0,total);
+  cards=shuffle([...pool,...pool]);
+  board.style.gridTemplateColumns=`repeat(${n},74px)`;
+  board.innerHTML='';
+  cards.forEach((sym,i)=>{
+    const c=document.createElement('div');c.className='card';c.dataset.sym=sym;
+    c.innerHTML=`<div class="face front"></div><div class="face back">${sym}</div>`;
+    c.onclick=()=>flip(c);board.appendChild(c);
+  });
+}
+function startTimer(){started=true;timer=setInterval(()=>{seconds++;document.getElementById('time').textContent=seconds+'s';},1000);}
+function flip(c){
+  if(lock||c.classList.contains('flip')||c.classList.contains('matched'))return;
+  if(!started)startTimer();
+  c.classList.add('flip');
+  if(!first){first=c;return;}
+  moves++;document.getElementById('moves').textContent=moves;
+  if(first.dataset.sym===c.dataset.sym){
+    first.classList.add('matched');c.classList.add('matched');first=null;matches++;
+    document.getElementById('matches').textContent=matches;
+    if(matches===total){clearInterval(timer);
+      document.getElementById('win').textContent=`🎉 Solved in ${moves} moves and ${seconds}s!`;}
+  }else{
+    lock=true;const f=first;first=null;
+    setTimeout(()=>{f.classList.remove('flip');c.classList.remove('flip');lock=false;},800);
+  }
+}
+document.getElementById('reset').onclick=init;
+document.getElementById('size').onchange=init;
+init();
+</script>
+</body>
+</html>

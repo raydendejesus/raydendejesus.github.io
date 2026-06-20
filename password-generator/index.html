@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Password Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .back:hover { opacity: 1; }
+  .card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 32px;
+    width: min(92vw, 500px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 24px; font-size: 24px; text-align: center; }
+  .output {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  #pw {
+    flex: 1;
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 18px;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0b1120;
+    color: #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  button {
+    font-family: inherit;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    padding: 12px 16px;
+    background: #0b1120;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  #copyBtn { min-width: 90px; }
+  .field { margin-bottom: 18px; }
+  .lenrow { display: flex; justify-content: space-between; font-size: 14px; color: #94a3b8; margin-bottom: 8px; }
+  .lenrow b { color: var(--accent); font-size: 16px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    background: #0b1120;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .opt input { accent-color: var(--accent); width: 16px; height: 16px; }
+  #genBtn {
+    width: 100%;
+    background: var(--accent);
+    color: #04293b;
+    font-weight: 700;
+    border: none;
+    margin-bottom: 18px;
+  }
+  #genBtn:hover { filter: brightness(1.1); }
+  .strength { font-size: 13px; color: #94a3b8; }
+  .bar {
+    height: 8px;
+    border-radius: 6px;
+    background: #1f2937;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .bar > div { height: 100%; width: 0; transition: width 0.2s, background 0.2s; }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🔐 Password Generator</h1>
+  <div class="output">
+    <div id="pw">click generate</div>
+    <button id="copyBtn">Copy</button>
+  </div>
+  <div class="field">
+    <div class="lenrow"><span>Length</span><b id="lenVal">16</b></div>
+    <input type="range" id="len" min="4" max="40" value="16">
+  </div>
+  <div class="opts">
+    <label class="opt"><input type="checkbox" id="lower" checked> Lowercase</label>
+    <label class="opt"><input type="checkbox" id="upper" checked> Uppercase</label>
+    <label class="opt"><input type="checkbox" id="nums" checked> Numbers</label>
+    <label class="opt"><input type="checkbox" id="syms"> Symbols</label>
+  </div>
+  <button id="genBtn">Generate</button>
+  <div class="strength" id="strengthLabel">Strength: —</div>
+  <div class="bar"><div id="strengthBar"></div></div>
+</div>
+<script>
+  const SETS = {
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    nums: '0123456789',
+    syms: '!@#$%^&*()-_=+[]{};:,.<>?/'
+  };
+
+  const lenEl = document.getElementById('len');
+  const lenVal = document.getElementById('lenVal');
+  const pwEl = document.getElementById('pw');
+  const copyBtn = document.getElementById('copyBtn');
+
+  function randInt(max) {
+    // Cryptographically strong unbiased random in [0, max)
+    const arr = new Uint32Array(1);
+    const limit = Math.floor(0xFFFFFFFF / max) * max;
+    let x;
+    do { crypto.getRandomValues(arr); x = arr[0]; } while (x >= limit);
+    return x % max;
+  }
+
+  function selectedSets() {
+    const sets = [];
+    if (document.getElementById('lower').checked) sets.push(SETS.lower);
+    if (document.getElementById('upper').checked) sets.push(SETS.upper);
+    if (document.getElementById('nums').checked) sets.push(SETS.nums);
+    if (document.getElementById('syms').checked) sets.push(SETS.syms);
+    return sets;
+  }
+
+  function generate() {
+    const length = parseInt(lenEl.value, 10);
+    const sets = selectedSets();
+    if (sets.length === 0) {
+      pwEl.textContent = 'pick at least one set';
+      updateStrength('');
+      return;
+    }
+    const pool = sets.join('');
+    const chars = [];
+    // guarantee at least one char from each selected set
+    for (const s of sets) chars.push(s[randInt(s.length)]);
+    while (chars.length < length) chars.push(pool[randInt(pool.length)]);
+    // trim if sets exceeded length, then shuffle
+    chars.length = length;
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    const pw = chars.join('');
+    pwEl.textContent = pw;
+    updateStrength(pw);
+  }
+
+  function updateStrength(pw) {
+    const label = document.getElementById('strengthLabel');
+    const bar = document.getElementById('strengthBar');
+    if (!pw) { label.textContent = 'Strength: —'; bar.style.width = '0'; return; }
+    const sets = selectedSets().length;
+    const len = pw.length;
+    let score = 0;
+    if (len >= 8) score++;
+    if (len >= 12) score++;
+    if (len >= 16) score++;
+    if (sets >= 2) score++;
+    if (sets >= 4) score++;
+    const levels = [
+      { t: 'Very weak', c: '#ef4444', w: '20%' },
+      { t: 'Weak', c: '#f59e0b', w: '40%' },
+      { t: 'Fair', c: '#eab308', w: '60%' },
+      { t: 'Strong', c: '#22c55e', w: '80%' },
+      { t: 'Very strong', c: '#10b981', w: '100%' }
+    ];
+    const idx = Math.min(score, levels.length) - 1;
+    const lv = levels[Math.max(0, idx)];
+    label.textContent = 'Strength: ' + lv.t;
+    bar.style.background = lv.c;
+    bar.style.width = lv.w;
+  }
+
+  lenEl.addEventListener('input', () => { lenVal.textContent = lenEl.value; generate(); });
+  document.getElementById('genBtn').addEventListener('click', generate);
+  ['lower','upper','nums','syms'].forEach(id =>
+    document.getElementById(id).addEventListener('change', generate));
+
+  copyBtn.addEventListener('click', async () => {
+    const text = pwEl.textContent;
+    if (!text || text === 'click generate' || text === 'pick at least one set') return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // fallback for file:// or older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+    }
+    const old = copyBtn.textContent;
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = old; }, 1200);
+  });
+
+  generate();
+</script>
+</body>
+</html>

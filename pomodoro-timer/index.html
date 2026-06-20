@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Timer</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .back:hover { opacity: 1; }
+  .card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 36px 32px;
+    width: min(92vw, 440px);
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 24px; font-size: 22px; }
+  .modes { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+  .modes button {
+    flex: 1;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0b1120;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  .modes button.active {
+    background: var(--accent);
+    color: #04293b;
+    font-weight: 700;
+    border-color: var(--accent);
+  }
+  .time {
+    font-size: 84px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    margin: 12px 0 6px;
+  }
+  .status { color: #94a3b8; font-size: 14px; margin-bottom: 28px; min-height: 18px; }
+  .controls { display: flex; gap: 12px; justify-content: center; }
+  .controls button {
+    font-family: inherit;
+    font-size: 15px;
+    padding: 12px 22px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #0b1120;
+    color: #e2e8f0;
+    cursor: pointer;
+    min-width: 96px;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  #startBtn {
+    background: var(--accent);
+    color: #04293b;
+    font-weight: 700;
+    border: none;
+  }
+  #startBtn:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🍅 Pomodoro Timer</h1>
+  <div class="modes">
+    <button id="workMode" class="active">Work · 25:00</button>
+    <button id="breakMode">Break · 5:00</button>
+  </div>
+  <div class="time" id="time">25:00</div>
+  <div class="status" id="status">Ready to focus</div>
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+</div>
+<script>
+  const DURATIONS = { work: 25 * 60, break: 5 * 60 };
+  let mode = 'work';
+  let remaining = DURATIONS.work;
+  let timerId = null;
+  let running = false;
+
+  const timeEl = document.getElementById('time');
+  const statusEl = document.getElementById('status');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const workBtn = document.getElementById('workMode');
+  const breakBtn = document.getElementById('breakMode');
+
+  function render() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    timeEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    document.title = timeEl.textContent + ' · Pomodoro';
+  }
+
+  function setMode(newMode) {
+    mode = newMode;
+    pause();
+    remaining = DURATIONS[mode];
+    workBtn.classList.toggle('active', mode === 'work');
+    breakBtn.classList.toggle('active', mode === 'break');
+    statusEl.textContent = mode === 'work' ? 'Ready to focus' : 'Time for a break';
+    render();
+  }
+
+  function tick() {
+    remaining--;
+    if (remaining <= 0) {
+      remaining = 0;
+      render();
+      pause();
+      beep();
+      statusEl.textContent = (mode === 'work' ? 'Work' : 'Break') + ' session complete!';
+      // auto-switch to the other mode
+      setTimeout(() => setMode(mode === 'work' ? 'break' : 'work'), 800);
+      return;
+    }
+    render();
+  }
+
+  function start() {
+    if (running) return;
+    if (remaining <= 0) remaining = DURATIONS[mode];
+    running = true;
+    startBtn.textContent = 'Pause';
+    statusEl.textContent = mode === 'work' ? 'Focusing…' : 'On a break…';
+    timerId = setInterval(tick, 1000);
+  }
+
+  function pause() {
+    running = false;
+    startBtn.textContent = 'Start';
+    if (timerId) { clearInterval(timerId); timerId = null; }
+  }
+
+  function toggle() { running ? pause() : start(); }
+
+  function reset() {
+    pause();
+    remaining = DURATIONS[mode];
+    statusEl.textContent = mode === 'work' ? 'Ready to focus' : 'Time for a break';
+    render();
+  }
+
+  // Short beep using Web Audio API — no audio files
+  let audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, now + i * 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.3, now + i * 0.25 + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.25 + 0.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + i * 0.25);
+        osc.stop(now + i * 0.25 + 0.2);
+      }
+    } catch (e) { /* audio not available */ }
+  }
+
+  startBtn.addEventListener('click', () => {
+    // resume audio context on first user gesture
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    toggle();
+  });
+  resetBtn.addEventListener('click', reset);
+  workBtn.addEventListener('click', () => setMode('work'));
+  breakBtn.addEventListener('click', () => setMode('break'));
+
+  render();
+</script>
+</body>
+</html>

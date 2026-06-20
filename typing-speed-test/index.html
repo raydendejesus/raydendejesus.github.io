@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typing Speed Test</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 14px;font-size:30px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:24px;max-width:760px;width:100%;}
+  .stats{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;justify-content:center;}
+  .stat{background:#0b1120;border:1px solid #1f2937;border-radius:12px;padding:8px 18px;text-align:center;min-width:90px;}
+  .stat small{display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;}
+  .stat b{font-size:24px;color:var(--accent);}
+  #quote{font-size:21px;line-height:1.7;letter-spacing:.3px;margin-bottom:18px;}
+  #quote span{transition:color .1s;}
+  #quote span.correct{color:#22c55e;}
+  #quote span.wrong{color:#f87171;background:rgba(248,113,113,.15);border-radius:3px;}
+  #quote span.current{background:rgba(56,189,248,.25);border-radius:3px;box-shadow:-1px 0 0 var(--accent);}
+  #input{width:100%;box-sizing:border-box;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:12px;
+    padding:14px;font-size:17px;font-family:inherit;resize:none;}
+  #input:focus{outline:none;border-color:var(--accent);}
+  .controls{margin-top:16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;}
+  button:hover{filter:brightness(1.1);}
+  select{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px 12px;}
+  #done{text-align:center;margin-top:14px;font-size:18px;color:#22c55e;min-height:24px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Typing Speed Test</h1>
+<div class="panel">
+  <div class="stats">
+    <div class="stat"><small>WPM</small><b id="wpm">0</b></div>
+    <div class="stat"><small>Accuracy</small><b id="acc">100%</b></div>
+    <div class="stat"><small>Time</small><b id="time">0s</b></div>
+    <div class="stat"><small>Errors</small><b id="err">0</b></div>
+  </div>
+  <div id="quote"></div>
+  <textarea id="input" rows="3" placeholder="Start typing here…"></textarea>
+  <div class="controls">
+    <select id="len"><option value="short">Short</option><option value="medium" selected>Medium</option><option value="long">Long</option></select>
+    <button id="restart">New Text</button>
+  </div>
+  <div id="done"></div>
+</div>
+<script>
+const TEXTS={
+  short:["The quick brown fox jumps over the lazy dog.","Practice makes perfect every single day.",
+    "Speed comes with steady consistent effort.","A small leak will sink a great ship."],
+  medium:["The art of typing fast is built on muscle memory and rhythm rather than raw force, so relax your hands and let the words flow naturally across the keys.",
+    "Every expert was once a beginner who refused to give up, practicing the same motions until they became effortless and second nature over time.",
+    "Good software is written by people who care about the small details, the edge cases, and the clarity that helps the next reader understand what was meant."],
+  long:["The history of the keyboard stretches back to mechanical typewriters, whose layout was designed to prevent jamming by spreading common letters apart, an arrangement we still use today even though the original constraint disappeared long ago, a curious reminder that habits often outlive their reasons.",
+    "When you focus on accuracy first and speed second, something interesting happens: your fingers learn the correct paths without reinforcing mistakes, and once those paths are reliable, raw speed follows almost on its own, like water finding the easiest way downhill through a familiar valley."]
+};
+const quoteEl=document.getElementById('quote'),input=document.getElementById('input');
+let target,spans,started,startTime,timer,finished;
+function newText(){
+  const pool=TEXTS[document.getElementById('len').value];
+  target=pool[Math.random()*pool.length|0];
+  quoteEl.innerHTML='';spans=[...target].map(ch=>{const s=document.createElement('span');s.textContent=ch;quoteEl.appendChild(s);return s;});
+  input.value='';input.disabled=false;started=false;finished=false;clearInterval(timer);
+  document.getElementById('wpm').textContent='0';document.getElementById('acc').textContent='100%';
+  document.getElementById('time').textContent='0s';document.getElementById('err').textContent='0';
+  document.getElementById('done').textContent='';
+  spans[0]&&spans[0].classList.add('current');input.focus();
+}
+input.addEventListener('input',()=>{
+  if(finished)return;
+  const val=input.value;
+  if(!started){started=true;startTime=Date.now();
+    timer=setInterval(()=>{document.getElementById('time').textContent=((Date.now()-startTime)/1000).toFixed(1)+'s';tick();},200);}
+  let errors=0;
+  spans.forEach((s,i)=>{s.classList.remove('correct','wrong','current');
+    if(i<val.length){if(val[i]===target[i])s.classList.add('correct');else{s.classList.add('wrong');errors++;}}
+    else if(i===val.length)s.classList.add('current');});
+  document.getElementById('err').textContent=errors;
+  const acc=val.length?Math.max(0,Math.round((val.length-errors)/val.length*100)):100;
+  document.getElementById('acc').textContent=acc+'%';
+  if(val.length>=target.length)finish(errors);
+});
+function tick(){
+  const mins=(Date.now()-startTime)/60000;
+  const words=input.value.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('wpm').textContent=mins>0?Math.round(words/mins):0;
+}
+function finish(errors){
+  finished=true;clearInterval(timer);input.disabled=true;
+  const secs=(Date.now()-startTime)/1000;
+  const words=target.split(/\s+/).length;
+  const wpm=Math.round(words/(secs/60));
+  const acc=Math.round((target.length-errors)/target.length*100);
+  document.getElementById('wpm').textContent=wpm;
+  document.getElementById('done').textContent=`Done! ${wpm} WPM at ${acc}% accuracy in ${secs.toFixed(1)}s.`;
+}
+document.getElementById('restart').onclick=newText;
+document.getElementById('len').onchange=newText;
+newText();
+</script>
+</body>
+</html>

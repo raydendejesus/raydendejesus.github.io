@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Age Calculator</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 14px;font-size:30px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:26px;max-width:520px;width:100%;}
+  label{display:block;color:#94a3b8;font-size:13px;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;}
+  input[type=date]{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:11px 12px;
+    font-size:16px;font-family:inherit;flex:1;min-width:160px;}
+  input[type=date]:focus{outline:none;border-color:var(--accent);}
+  .big{text-align:center;margin-bottom:18px;}
+  .big .age{font-size:46px;font-weight:800;color:var(--accent);line-height:1.1;}
+  .big .sub{color:#94a3b8;font-size:15px;margin-top:4px;}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  .card{background:#0b1120;border:1px solid #1f2937;border-radius:12px;padding:14px;text-align:center;}
+  .card small{display:block;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.5px;}
+  .card b{font-size:22px;}
+  #next{margin-top:16px;text-align:center;color:#fbbf24;font-size:15px;min-height:22px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Age Calculator</h1>
+<div class="panel">
+  <div class="row">
+    <div style="flex:1;"><label>Date of birth</label><input type="date" id="dob"></div>
+    <div style="flex:1;"><label>Age at date</label><input type="date" id="target"></div>
+  </div>
+  <div id="result" class="hidden">
+    <div class="big">
+      <div class="age" id="ageMain">—</div>
+      <div class="sub" id="ageSub"></div>
+    </div>
+    <div class="grid">
+      <div class="card"><small>Total months</small><b id="months">0</b></div>
+      <div class="card"><small>Total weeks</small><b id="weeks">0</b></div>
+      <div class="card"><small>Total days</small><b id="days">0</b></div>
+      <div class="card"><small>Total hours</small><b id="hours">0</b></div>
+    </div>
+    <div id="next"></div>
+  </div>
+  <p id="hint" style="color:#94a3b8;text-align:center;margin:8px 0 0;">Pick your date of birth to begin.</p>
+</div>
+<script>
+const dob=document.getElementById('dob'),target=document.getElementById('target');
+target.value=new Date().toISOString().slice(0,10);
+function nf(n){return n.toLocaleString();}
+function calc(){
+  if(!dob.value){return;}
+  const b=new Date(dob.value+'T00:00:00');
+  const t=target.value?new Date(target.value+'T00:00:00'):new Date();
+  if(t<b){document.getElementById('hint').textContent='Target date is before birth date.';
+    document.getElementById('result').classList.add('hidden');return;}
+  document.getElementById('hint').classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  let y=t.getFullYear()-b.getFullYear();
+  let m=t.getMonth()-b.getMonth();
+  let d=t.getDate()-b.getDate();
+  if(d<0){m--;const pm=new Date(t.getFullYear(),t.getMonth(),0).getDate();d+=pm;}
+  if(m<0){y--;m+=12;}
+  document.getElementById('ageMain').textContent=`${y} years, ${m} months, ${d} days`;
+  document.getElementById('ageSub').textContent=`born ${b.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}`;
+  const ms=t-b;const totalDays=Math.floor(ms/86400000);
+  document.getElementById('months').textContent=nf(y*12+m);
+  document.getElementById('weeks').textContent=nf(Math.floor(totalDays/7));
+  document.getElementById('days').textContent=nf(totalDays);
+  document.getElementById('hours').textContent=nf(Math.floor(ms/3600000));
+  // next birthday (relative to target date)
+  let nb=new Date(t.getFullYear(),b.getMonth(),b.getDate());
+  if(nb<=t)nb=new Date(t.getFullYear()+1,b.getMonth(),b.getDate());
+  const dleft=Math.ceil((nb-t)/86400000);
+  document.getElementById('next').textContent=dleft===0?'🎂 Happy birthday!':`🎂 Next birthday in ${dleft} day${dleft===1?'':'s'} (${nb.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})}).`;
+}
+dob.oninput=calc;target.oninput=calc;
+</script>
+</body>
+</html>

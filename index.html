@@ -13,26 +13,29 @@
       color: #e2e8f0; min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; padding: 64px 20px;
     }
-    header { text-align: center; margin-bottom: 48px; }
+    header { text-align: center; margin-bottom: 12px; }
     h1 { font-size: 2.7rem; letter-spacing: -1px; }
     .accent { color: #38bdf8; }
     header p { color: #94a3b8; margin-top: 10px; font-size: 1.05rem; }
+    .count { color: #64748b; font-size: .9rem; margin-bottom: 40px; }
+    section { width: 100%; max-width: 1000px; margin-bottom: 14px; }
+    h2.cat { font-size: 1.1rem; color: #38bdf8; margin: 30px 0 14px; letter-spacing: .5px; text-transform: uppercase; }
     .grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 20px; width: 100%; max-width: 980px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px; width: 100%;
     }
     a.card {
       text-decoration: none; color: inherit; background: #111827;
-      border: 1px solid #1f2937; border-radius: 16px; padding: 24px;
+      border: 1px solid #1f2937; border-radius: 16px; padding: 20px;
       transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
     }
     a.card:hover {
       transform: translateY(-4px); border-color: #38bdf8;
       box-shadow: 0 12px 30px rgba(56,189,248,.12);
     }
-    .emoji { font-size: 2rem; }
-    .card h2 { font-size: 1.18rem; margin: 14px 0 6px; }
-    .card p { color: #94a3b8; font-size: .9rem; line-height: 1.45; }
+    .emoji { font-size: 1.8rem; }
+    .card h3 { font-size: 1.08rem; margin: 10px 0 5px; }
+    .card p { color: #94a3b8; font-size: .85rem; line-height: 1.4; }
     footer { margin-top: 56px; color: #64748b; font-size: .85rem; text-align: center; }
     footer a { color: #38bdf8; text-decoration: none; }
   </style>
@@ -40,47 +43,52 @@
 <body>
   <header>
     <h1>Hi, I'm <span class="accent">Rayden</span> 👋</h1>
-    <p>A collection of small things I built. Click any card to try it live.</p>
+    <p>A collection of small web apps I built. Click any card to try it live.</p>
   </header>
+  <div class="count">25 projects · all single-file, no dependencies</div>
 
-  <main class="grid">
-    <a class="card" href="https://raydendejesus.github.io/maze-runner/">
-      <div class="emoji">🌀</div><h2>Maze Runner</h2>
-      <p>Procedural mazes with a one-click path solver. Arrow keys or swipe.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/particle-constellation/">
-      <div class="emoji">✨</div><h2>Particle Constellation</h2>
-      <p>An animated node network that follows your mouse and bursts on click.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/palette-forge/">
-      <div class="emoji">🎨</div><h2>Palette Forge</h2>
-      <p>Generate color palettes with harmony modes. Lock and copy hex codes.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/markdown-preview/">
-      <div class="emoji">📝</div><h2>Markdown Preview</h2>
-      <p>Live split-pane Markdown editor with a from-scratch parser.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/username-generator/">
-      <div class="emoji">🏷️</div><h2>Username Generator</h2>
-      <p>Generate handles across 5 styles, with one-click copy.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/dice-roller/">
-      <div class="emoji">🎲</div><h2>Dice Roller</h2>
-      <p>Roll up to six pip dice, see the total, shake on roll.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/tip-calculator/">
-      <div class="emoji">💵</div><h2>Tip Calculator</h2>
-      <p>Tip %, split by people, live totals and per-person amounts.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/password-generator/">
-      <div class="emoji">🔐</div><h2>Password Generator</h2>
-      <p>Length slider, character options, strength bar and copy button.</p>
-    </a>
-    <a class="card" href="https://raydendejesus.github.io/pomodoro-timer/">
-      <div class="emoji">🍅</div><h2>Pomodoro Timer</h2>
-      <p>25/5 work-break timer with a built-in beep. Stay focused.</p>
-    </a>
-  </main>
+  <section>
+    <h2 class="cat">🎮 Games</h2>
+    <div class="grid">
+      <a class="card" href="./maze-runner/"><div class="emoji">🌀</div><h3>Maze Runner</h3><p>Procedural mazes with a one-click path solver.</p></a>
+      <a class="card" href="./breakout-blitz/"><div class="emoji">🧱</div><h3>Breakout Blitz</h3><p>Brick-breaker, 8 levels, lives and scoring.</p></a>
+      <a class="card" href="./snake-classic/"><div class="emoji">🐍</div><h3>Snake Classic</h3><p>Grow, avoid yourself, beat your best score.</p></a>
+      <a class="card" href="./game-2048/"><div class="emoji">🔢</div><h3>2048</h3><p>Slide and merge tiles up to 2048.</p></a>
+      <a class="card" href="./tic-tac-toe-ai/"><div class="emoji">⭕</div><h3>Tic-Tac-Toe AI</h3><p>Play vs a minimax AI — Easy to unbeatable.</p></a>
+      <a class="card" href="./memory-match/"><div class="emoji">🧠</div><h3>Memory Match</h3><p>Flip and match pairs against the clock.</p></a>
+      <a class="card" href="./whack-a-mole/"><div class="emoji">🔨</div><h3>Whack-a-Mole</h3><p>30s of moles to hit and bombs to dodge.</p></a>
+      <a class="card" href="./dice-roller/"><div class="emoji">🎲</div><h3>Dice Roller</h3><p>Roll up to six pip dice, shake on roll.</p></a>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="cat">🛠️ Tools</h2>
+    <div class="grid">
+      <a class="card" href="./tip-calculator/"><div class="emoji">💵</div><h3>Tip Calculator</h3><p>Tip %, split by people, live totals.</p></a>
+      <a class="card" href="./password-generator/"><div class="emoji">🔐</div><h3>Password Generator</h3><p>Length, options, strength bar, copy.</p></a>
+      <a class="card" href="./pomodoro-timer/"><div class="emoji">🍅</div><h3>Pomodoro Timer</h3><p>25/5 work-break timer with a beep.</p></a>
+      <a class="card" href="./unit-converter/"><div class="emoji">📏</div><h3>Unit Converter</h3><p>Length, weight, temp, volume, speed, data.</p></a>
+      <a class="card" href="./qr-code-maker/"><div class="emoji">▪️</div><h3>QR Code Maker</h3><p>Offline QR generator with PNG download.</p></a>
+      <a class="card" href="./markdown-preview/"><div class="emoji">📝</div><h3>Markdown Preview</h3><p>Live editor with a from-scratch parser.</p></a>
+      <a class="card" href="./username-generator/"><div class="emoji">🏷️</div><h3>Username Generator</h3><p>Handles in 5 styles, one-click copy.</p></a>
+      <a class="card" href="./typing-speed-test/"><div class="emoji">⌨️</div><h3>Typing Speed Test</h3><p>Live WPM, accuracy and error tracking.</p></a>
+      <a class="card" href="./age-calculator/"><div class="emoji">🎂</div><h3>Age Calculator</h3><p>Exact age plus next-birthday countdown.</p></a>
+      <a class="card" href="./countdown-to-date/"><div class="emoji">⏳</div><h3>Countdown to Date</h3><p>Live countdown to any date and time.</p></a>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="cat">✨ Visual Toys</h2>
+    <div class="grid">
+      <a class="card" href="./particle-constellation/"><div class="emoji">✨</div><h3>Particle Constellation</h3><p>Node network that follows your mouse.</p></a>
+      <a class="card" href="./palette-forge/"><div class="emoji">🎨</div><h3>Palette Forge</h3><p>Color palettes with harmony modes.</p></a>
+      <a class="card" href="./fireworks-canvas/"><div class="emoji">🎆</div><h3>Fireworks</h3><p>Tap to launch bursting fireworks.</p></a>
+      <a class="card" href="./kaleidoscope-draw/"><div class="emoji">🔮</div><h3>Kaleidoscope Draw</h3><p>Symmetry painting across radial axes.</p></a>
+      <a class="card" href="./matrix-rain/"><div class="emoji">💻</div><h3>Matrix Rain</h3><p>Falling-glyph digital rain, 5 themes.</p></a>
+      <a class="card" href="./starfield-warp/"><div class="emoji">🚀</div><h3>Starfield Warp</h3><p>3D hyperspace with mouse steering.</p></a>
+      <a class="card" href="./lava-lamp-blobs/"><div class="emoji">🫧</div><h3>Lava Lamp Blobs</h3><p>Metaball goo that chases your cursor.</p></a>
+    </div>
+  </section>
 
   <footer>
     Built with plain HTML, CSS &amp; JavaScript ·

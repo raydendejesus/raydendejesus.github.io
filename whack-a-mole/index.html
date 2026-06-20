@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whack-a-Mole</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;user-select:none;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 6px;font-size:30px;}
+  .top{display:flex;gap:14px;align-items:center;margin-bottom:16px;}
+  .stat{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:6px 18px;text-align:center;min-width:80px;}
+  .stat small{display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;}
+  .stat b{font-size:22px;}
+  #grid{display:grid;grid-template-columns:repeat(3,100px);grid-template-rows:repeat(3,100px);gap:14px;}
+  .hole{background:#0b1120;border:1px solid #1f2937;border-radius:50%;overflow:hidden;position:relative;cursor:pointer;
+    box-shadow:inset 0 -8px 16px rgba(0,0,0,.5);}
+  .mole{position:absolute;inset:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:46px;transform:translateY(110%);transition:transform .12s;}
+  .hole.up .mole{transform:translateY(0);}
+  .hole.bomb .mole{}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:10px;padding:11px 22px;font-weight:700;
+    cursor:pointer;font-size:15px;}
+  button:hover{filter:brightness(1.1);}
+  #msg{margin-top:16px;font-size:18px;min-height:26px;text-align:center;color:#94a3b8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Whack-a-Mole</h1>
+<div class="top">
+  <div class="stat"><small>Score</small><b id="score">0</b></div>
+  <div class="stat"><small>Time</small><b id="time">30</b></div>
+  <div class="stat"><small>Best</small><b id="best">0</b></div>
+</div>
+<div id="grid"></div>
+<div id="msg">Hit moles 🐹, avoid bombs 💣!</div>
+<button id="start">Start Game</button>
+<script>
+const grid=document.getElementById('grid');
+let holes=[],score,timeLeft,running,spawnT,clockT,best=+(localStorage.getItem('wamBest')||0);
+document.getElementById('best').textContent=best;
+for(let i=0;i<9;i++){const h=document.createElement('div');h.className='hole';
+  h.innerHTML='<div class="mole"></div>';h.onclick=()=>hit(h);grid.appendChild(h);holes.push(h);}
+function hit(h){
+  if(!running||!h.classList.contains('up'))return;
+  if(h.dataset.type==='bomb'){score=Math.max(0,score-3);flash(h,'💥');h.classList.remove('up');
+    document.getElementById('msg').textContent='Ouch! Bomb! -3';}
+  else{score++;flash(h,'✨');h.classList.remove('up');}
+  document.getElementById('score').textContent=score;
+}
+function flash(h,e){const m=h.querySelector('.mole');m.textContent=e;}
+function pop(){
+  const free=holes.filter(h=>!h.classList.contains('up'));
+  if(!free.length)return;
+  const h=free[Math.random()*free.length|0];
+  const bomb=Math.random()<0.22;
+  h.dataset.type=bomb?'bomb':'mole';
+  h.querySelector('.mole').textContent=bomb?'💣':'🐹';
+  h.classList.add('up');
+  const dur=600+Math.random()*700;
+  setTimeout(()=>h.classList.remove('up'),dur);
+}
+function start(){
+  if(running)return;running=true;score=0;timeLeft=30;
+  document.getElementById('score').textContent=0;document.getElementById('time').textContent=30;
+  document.getElementById('msg').textContent='Go!';
+  let interval=900;
+  spawnT=setInterval(()=>{pop();},interval);
+  // ramp difficulty
+  const ramp=setInterval(()=>{if(!running){clearInterval(ramp);return;}
+    clearInterval(spawnT);interval=Math.max(420,interval-70);spawnT=setInterval(pop,interval);},5000);
+  clockT=setInterval(()=>{timeLeft--;document.getElementById('time').textContent=timeLeft;
+    if(timeLeft<=0)stop();},1000);
+}
+function stop(){
+  running=false;clearInterval(spawnT);clearInterval(clockT);
+  holes.forEach(h=>h.classList.remove('up'));
+  if(score>best){best=score;localStorage.setItem('wamBest',best);document.getElementById('best').textContent=best;}
+  document.getElementById('msg').textContent=`Time! Final score: ${score} ${score>=best&&score>0?'— new best! 🏆':''}`;
+}
+document.getElementById('start').onclick=start;
+</script>
+</body>
+</html>

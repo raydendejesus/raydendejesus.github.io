@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palette Forge</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px;
+  }
+  .back {
+    position: fixed; top: 16px; left: 16px;
+    color: var(--accent); text-decoration: none; font-size: 14px; opacity: 0.8;
+  }
+  .back:hover { opacity: 1; }
+  .card {
+    background: #111827; border: 1px solid #1f2937; border-radius: 18px;
+    padding: 28px; width: min(94vw, 620px); text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  .sub { margin: 0 0 20px; color: #94a3b8; font-size: 14px; }
+  .controls {
+    display: flex; gap: 12px; align-items: center; justify-content: center;
+    flex-wrap: wrap; margin-bottom: 22px;
+  }
+  label { font-size: 14px; color: #cbd5e1; }
+  select, button {
+    font-family: inherit; font-size: 15px; border-radius: 10px;
+    border: 1px solid #1f2937; padding: 10px 16px;
+    background: #0b1120; color: #e2e8f0; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  .palette { display: flex; gap: 10px; }
+  .swatch {
+    flex: 1; height: 180px; border-radius: 12px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    align-items: center; cursor: pointer; position: relative;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: transform 0.12s;
+  }
+  .swatch:hover { transform: translateY(-4px); }
+  .swatch .hex {
+    background: rgba(0,0,0,0.35); width: 100%;
+    padding: 8px 0; border-radius: 0 0 11px 11px;
+    font-family: ui-monospace, monospace; font-size: 13px; letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .swatch .lock {
+    position: absolute; top: 8px; right: 8px; font-size: 16px;
+    background: rgba(0,0,0,0.3); border-radius: 6px; padding: 2px 6px;
+    user-select: none;
+  }
+  .hint { color: #64748b; font-size: 13px; margin-top: 18px; }
+  .toast {
+    height: 20px; color: #4ade80; font-size: 13px; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>Palette Forge</h1>
+  <p class="sub">Generate harmonious color palettes. Click a swatch to copy, click the lock to keep it.</p>
+  <div class="controls">
+    <label for="mode">Harmony</label>
+    <select id="mode">
+      <option value="auto">Random / Vibrant</option>
+      <option value="analogous">Analogous</option>
+      <option value="complementary">Complementary</option>
+      <option value="triadic">Triadic</option>
+      <option value="monochrome">Monochrome</option>
+    </select>
+    <button id="gen">Generate (Space)</button>
+  </div>
+  <div class="palette" id="palette"></div>
+  <div class="toast" id="toast"></div>
+  <div class="hint">Press <b>Space</b> for a new palette. Locked colors stay put.</div>
+</div>
+<script>
+  const paletteEl = document.getElementById('palette');
+  const modeEl = document.getElementById('mode');
+  const toast = document.getElementById('toast');
+  const COUNT = 5;
+  let colors = [];      // {h,s,l, locked}
+
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const toHex = x => Math.round(x * 255).toString(16).padStart(2, '0');
+    return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+  }
+
+  function luminance(h, s, l) { return l; }
+
+  function buildHues(mode, base) {
+    switch (mode) {
+      case 'analogous': return [base, base + 30, base + 60, base + 90, base + 120].map(x => x % 360);
+      case 'complementary': return [base, base + 20, base + 180, base + 200, base + 160].map(x => (x + 360) % 360);
+      case 'triadic': return [base, base + 120, base + 240, base + 30, base + 150].map(x => x % 360);
+      case 'monochrome': return [base, base, base, base, base];
+      default: return Array.from({ length: COUNT }, () => Math.random() * 360);
+    }
+  }
+
+  function generate() {
+    const mode = modeEl.value;
+    const base = Math.random() * 360;
+    const hues = buildHues(mode, base);
+    const next = [];
+    for (let i = 0; i < COUNT; i++) {
+      if (colors[i] && colors[i].locked) { next.push(colors[i]); continue; }
+      let s, l;
+      if (mode === 'monochrome') {
+        s = 35 + Math.random() * 30;
+        l = 20 + i * 15 + Math.random() * 6;
+      } else {
+        s = 55 + Math.random() * 35;
+        l = 40 + Math.random() * 30;
+      }
+      next.push({ h: hues[i], s, l: Math.min(85, l), locked: false });
+    }
+    colors = next;
+    render();
+  }
+
+  function render() {
+    paletteEl.innerHTML = '';
+    colors.forEach((c, i) => {
+      const hex = hslToHex(c.h, c.s, c.l);
+      const sw = document.createElement('div');
+      sw.className = 'swatch';
+      sw.style.background = hex;
+      const dark = c.l < 55;
+      const txt = dark ? '#e2e8f0' : '#0b1120';
+      sw.innerHTML = `<span class="lock" style="color:${txt}">${c.locked ? '\u{1F512}' : '\u{1F513}'}</span>` +
+                     `<span class="hex" style="color:${txt}">${hex}</span>`;
+      sw.querySelector('.lock').addEventListener('click', (e) => {
+        e.stopPropagation();
+        colors[i].locked = !colors[i].locked;
+        render();
+      });
+      sw.addEventListener('click', () => {
+        navigator.clipboard?.writeText(hex);
+        toast.textContent = 'Copied ' + hex;
+        setTimeout(() => { if (toast.textContent === 'Copied ' + hex) toast.textContent = ''; }, 1400);
+      });
+      paletteEl.appendChild(sw);
+    });
+  }
+
+  document.getElementById('gen').addEventListener('click', generate);
+  modeEl.addEventListener('change', generate);
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && e.target.tagName !== 'SELECT') { e.preventDefault(); generate(); }
+  });
+
+  generate();
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice Roller</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .back:hover { opacity: 1; }
+  .card {
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 18px;
+    padding: 32px;
+    width: min(92vw, 520px);
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1 { margin: 0 0 8px; font-size: 24px; }
+  .sub { margin: 0 0 24px; color: #94a3b8; font-size: 14px; }
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  label { font-size: 14px; color: #cbd5e1; }
+  select, button {
+    font-family: inherit;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    padding: 10px 16px;
+    background: #0b1120;
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  button.roll {
+    background: var(--accent);
+    color: #04293b;
+    font-weight: 700;
+    border: none;
+  }
+  button.roll:hover { filter: brightness(1.1); }
+  button.roll:active { transform: scale(0.97); }
+  .dice {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+    min-height: 76px;
+    margin-bottom: 20px;
+  }
+  .die {
+    width: 72px;
+    height: 72px;
+    background: #f8fafc;
+    border-radius: 14px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 10px;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
+  }
+  .pip {
+    width: 12px;
+    height: 12px;
+    background: #0b1120;
+    border-radius: 50%;
+    align-self: center;
+    justify-self: center;
+  }
+  /* pip positions in a 3x3 grid */
+  .p-tl { grid-area: 1 / 1; }
+  .p-tr { grid-area: 1 / 3; }
+  .p-ml { grid-area: 2 / 1; }
+  .p-mm { grid-area: 2 / 2; }
+  .p-mr { grid-area: 2 / 3; }
+  .p-bl { grid-area: 3 / 1; }
+  .p-br { grid-area: 3 / 3; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0) rotate(0); }
+    20% { transform: translate(-4px,2px) rotate(-6deg); }
+    40% { transform: translate(4px,-2px) rotate(6deg); }
+    60% { transform: translate(-3px,1px) rotate(-4deg); }
+    80% { transform: translate(3px,-1px) rotate(4deg); }
+  }
+  .shaking { animation: shake 0.4s ease; }
+  .total { font-size: 20px; margin-top: 8px; }
+  .total b { color: var(--accent); font-size: 26px; }
+</style>
+</head>
+<body>
+<a class="back" href="../">&larr; back</a>
+<div class="card">
+  <h1>🎲 Dice Roller</h1>
+  <p class="sub">Roll up to six dice and see the total.</p>
+  <div class="controls">
+    <label for="count">Dice:</label>
+    <select id="count">
+      <option>1</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option>
+    </select>
+    <button class="roll" id="rollBtn">Roll</button>
+  </div>
+  <div class="dice" id="dice"></div>
+  <div class="total" id="total"></div>
+</div>
+<script>
+  // pip layout for each face value
+  const FACES = {
+    1: ['p-mm'],
+    2: ['p-tl', 'p-br'],
+    3: ['p-tl', 'p-mm', 'p-br'],
+    4: ['p-tl', 'p-tr', 'p-bl', 'p-br'],
+    5: ['p-tl', 'p-tr', 'p-mm', 'p-bl', 'p-br'],
+    6: ['p-tl', 'p-tr', 'p-ml', 'p-mr', 'p-bl', 'p-br']
+  };
+
+  const diceEl = document.getElementById('dice');
+  const totalEl = document.getElementById('total');
+  const countEl = document.getElementById('count');
+  const rollBtn = document.getElementById('rollBtn');
+
+  function makeDie(value) {
+    const die = document.createElement('div');
+    die.className = 'die shaking';
+    for (const pos of FACES[value]) {
+      const pip = document.createElement('div');
+      pip.className = 'pip ' + pos;
+      die.appendChild(pip);
+    }
+    return die;
+  }
+
+  function roll() {
+    const n = parseInt(countEl.value, 10);
+    diceEl.innerHTML = '';
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      const value = Math.floor(Math.random() * 6) + 1;
+      total += value;
+      diceEl.appendChild(makeDie(value));
+    }
+    totalEl.innerHTML = 'Total: <b>' + total + '</b>';
+  }
+
+  rollBtn.addEventListener('click', roll);
+  roll();
+</script>
+</body>
+</html>

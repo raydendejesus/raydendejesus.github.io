@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Countdown to Date</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 14px;font-size:30px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:26px;max-width:600px;width:100%;text-align:center;}
+  .inputs{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:8px;}
+  input{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:11px 12px;font-size:15px;font-family:inherit;}
+  input#label{flex:1;min-width:200px;}
+  input:focus{outline:none;border-color:var(--accent);}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0;}
+  .presets button{background:#1f2937;color:#cbd5e1;font-weight:600;padding:6px 12px;font-size:13px;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;}
+  button:hover{filter:brightness(1.1);}
+  #title{font-size:22px;margin:18px 0 6px;color:#e2e8f0;}
+  .clock{display:flex;gap:14px;justify-content:center;margin:18px 0 10px;flex-wrap:wrap;}
+  .unit{background:#0b1120;border:1px solid #1f2937;border-radius:14px;padding:16px 6px;min-width:88px;}
+  .unit .n{font-size:42px;font-weight:800;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;}
+  .unit .l{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-top:6px;}
+  #sub{color:#94a3b8;font-size:14px;min-height:20px;}
+  #celebrate{font-size:24px;color:#22c55e;margin-top:10px;min-height:30px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Countdown</h1>
+<div class="panel">
+  <div class="inputs">
+    <input type="text" id="label" placeholder="What are you counting down to?" value="New Year 2027">
+    <input type="datetime-local" id="when">
+  </div>
+  <div class="presets">
+    <button data-p="newyear">🎆 New Year</button>
+    <button data-p="week">📅 +1 Week</button>
+    <button data-p="month">🗓️ +1 Month</button>
+    <button data-p="hour">⏱️ +1 Hour</button>
+  </div>
+  <div id="title">—</div>
+  <div class="clock">
+    <div class="unit"><div class="n" id="d">0</div><div class="l">Days</div></div>
+    <div class="unit"><div class="n" id="h">0</div><div class="l">Hours</div></div>
+    <div class="unit"><div class="n" id="m">0</div><div class="l">Minutes</div></div>
+    <div class="unit"><div class="n" id="s">0</div><div class="l">Seconds</div></div>
+  </div>
+  <div id="sub"></div>
+  <div id="celebrate"></div>
+</div>
+<script>
+const when=document.getElementById('when'),label=document.getElementById('label');
+function setWhen(date){when.value=new Date(date-date.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+// default: next new year
+(function(){const ny=new Date(new Date().getFullYear()+1,0,1,0,0);setWhen(ny);})();
+document.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
+  const p=b.dataset.p;const now=new Date();let d;
+  if(p==='newyear'){d=new Date(now.getFullYear()+1,0,1,0,0);label.value='New Year '+(now.getFullYear()+1);}
+  else if(p==='week'){d=new Date(now.getTime()+7*86400000);label.value='One week from now';}
+  else if(p==='month'){d=new Date(now);d.setMonth(d.getMonth()+1);label.value='One month from now';}
+  else{d=new Date(now.getTime()+3600000);label.value='One hour from now';}
+  setWhen(d);update();
+});
+const pad=n=>String(n).padStart(2,'0');
+let fired=false;
+function update(){
+  document.getElementById('title').textContent=label.value||'Countdown';
+  if(!when.value){return;}
+  const tgt=new Date(when.value);const now=new Date();let diff=tgt-now;
+  const cel=document.getElementById('celebrate');
+  if(diff<=0){
+    document.getElementById('d').textContent='0';document.getElementById('h').textContent='00';
+    document.getElementById('m').textContent='00';document.getElementById('s').textContent='00';
+    document.getElementById('sub').textContent='The moment has arrived!';
+    cel.textContent='🎉 '+(label.value||'Done')+'! 🎉';
+    return;
+  }
+  cel.textContent='';
+  const days=Math.floor(diff/86400000);diff-=days*86400000;
+  const hrs=Math.floor(diff/3600000);diff-=hrs*3600000;
+  const mins=Math.floor(diff/60000);diff-=mins*60000;
+  const secs=Math.floor(diff/1000);
+  document.getElementById('d').textContent=days;
+  document.getElementById('h').textContent=pad(hrs);
+  document.getElementById('m').textContent=pad(mins);
+  document.getElementById('s').textContent=pad(secs);
+  document.getElementById('sub').textContent='Target: '+tgt.toLocaleString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+when.oninput=update;label.oninput=update;
+setInterval(update,1000);update();
+</script>
+</body>
+</html>

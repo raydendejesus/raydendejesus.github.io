@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic-Tac-Toe vs AI</title>
+<style>
+  :root{--accent:#38bdf8;}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e293b,#0b1120);color:#e2e8f0;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px;}
+  a.back{position:fixed;top:14px;left:16px;color:var(--accent);text-decoration:none;font-size:15px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:0 0 6px;font-size:30px;}
+  .status{font-size:18px;margin-bottom:14px;color:#94a3b8;min-height:24px;}
+  .status b{color:var(--accent);}
+  #grid{display:grid;grid-template-columns:repeat(3,96px);grid-template-rows:repeat(3,96px);gap:10px;
+    background:#1f2937;padding:10px;border-radius:16px;}
+  .cell{background:#111827;border:1px solid #1f2937;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:52px;font-weight:800;cursor:pointer;transition:background .15s;}
+  .cell:hover{background:#172033;}
+  .cell.x{color:#38bdf8;}.cell.o{color:#f472b6;}
+  .cell.win{background:#14532d;border-color:#22c55e;}
+  .controls{margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;}
+  button{background:var(--accent);color:#04212e;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;}
+  button:hover{filter:brightness(1.1);}
+  select{background:#111827;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:9px 12px;font-size:14px;}
+  .scores{display:flex;gap:14px;margin-top:14px;}
+  .sc{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:6px 16px;text-align:center;}
+  .sc small{display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;}
+  .sc b{font-size:20px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Tic-Tac-Toe</h1>
+<div class="status" id="status">Your move (<b>X</b>)</div>
+<div id="grid"></div>
+<div class="controls">
+  <label style="color:#94a3b8;font-size:14px;">Difficulty:
+    <select id="diff"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard" selected>Hard (unbeatable)</option></select>
+  </label>
+  <button id="reset">New Game</button>
+</div>
+<div class="scores">
+  <div class="sc"><small>You</small><b id="sw">0</b></div>
+  <div class="sc"><small>Draws</small><b id="sd">0</b></div>
+  <div class="sc"><small>AI</small><b id="sl">0</b></div>
+</div>
+<script>
+const grid=document.getElementById('grid'),statusEl=document.getElementById('status');
+let board,over,cells=[],wins={w:0,d:0,l:0};
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function init(){grid.innerHTML='';cells=[];board=Array(9).fill('');over=false;
+  for(let i=0;i<9;i++){const c=document.createElement('div');c.className='cell';c.dataset.i=i;
+    c.onclick=()=>play(i);grid.appendChild(c);cells.push(c);}
+  statusEl.innerHTML='Your move (<b>X</b>)';}
+function winner(b){for(const[a,c,d]of LINES)if(b[a]&&b[a]===b[c]&&b[a]===b[d])return{p:b[a],line:[a,c,d]};
+  return b.includes('')?null:{p:'draw'};}
+function play(i){if(over||board[i])return;board[i]='X';draw();const r=winner(board);if(r){end(r);return;}
+  statusEl.textContent='AI thinking…';setTimeout(aiMove,260);}
+function aiMove(){if(over)return;const diff=document.getElementById('diff').value;let m;
+  if(diff==='easy')m=randMove();
+  else if(diff==='medium')m=Math.random()<0.55?best():randMove();
+  else m=best();
+  board[m]='O';draw();const r=winner(board);if(r){end(r);return;}statusEl.innerHTML='Your move (<b>X</b>)';}
+function randMove(){const e=board.map((v,i)=>v?null:i).filter(v=>v!=null);return e[Math.random()*e.length|0];}
+function best(){let bs=-Infinity,bm;for(let i=0;i<9;i++)if(!board[i]){board[i]='O';const s=minimax(board,0,false);board[i]='';
+  if(s>bs){bs=s;bm=i;}}return bm;}
+function minimax(b,depth,maxing){const r=winner(b);
+  if(r){if(r.p==='O')return 10-depth;if(r.p==='X')return depth-10;return 0;}
+  if(maxing){let best=-Infinity;for(let i=0;i<9;i++)if(!b[i]){b[i]='O';best=Math.max(best,minimax(b,depth+1,false));b[i]='';}return best;}
+  else{let best=Infinity;for(let i=0;i<9;i++)if(!b[i]){b[i]='X';best=Math.min(best,minimax(b,depth+1,true));b[i]='';}return best;}}
+function draw(){cells.forEach((c,i)=>{c.textContent=board[i];c.className='cell'+(board[i]?' '+board[i].toLowerCase():'');});}
+function end(r){over=true;if(r.p==='draw'){statusEl.textContent="It's a draw!";wins.d++;}
+  else if(r.p==='X'){statusEl.innerHTML='You win! 🎉';wins.w++;r.line.forEach(i=>cells[i].classList.add('win'));}
+  else{statusEl.innerHTML='AI wins 🤖';wins.l++;r.line.forEach(i=>cells[i].classList.add('win'));}
+  document.getElementById('sw').textContent=wins.w;document.getElementById('sd').textContent=wins.d;
+  document.getElementById('sl').textContent=wins.l;}
+document.getElementById('reset').onclick=init;
+init();
+</script>
+</body>
+</html>
