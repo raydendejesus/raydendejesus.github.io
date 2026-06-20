@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peg Solitaire</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 6px;font-size:22px;}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:12px;}
+  .board{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:18px;
+    display:grid;grid-template-columns:repeat(7,52px);grid-template-rows:repeat(7,52px);gap:4px;}
+  .cell{width:52px;height:52px;border-radius:50%;}
+  .cell.void{visibility:hidden;}
+  .cell.hole{background:#0b1120;box-shadow:inset 0 0 8px rgba(0,0,0,.6);cursor:default;}
+  .peg{background:radial-gradient(circle at 35% 30%,#7dd3fc,#0369a1);cursor:pointer;border:2px solid transparent;transition:transform .08s;}
+  .peg:hover{transform:scale(1.06);}
+  .peg.sel{border-color:#fff;box-shadow:0 0 12px #38bdf8;}
+  .hole.target{background:#0c2a3a;box-shadow:inset 0 0 0 2px #38bdf8;cursor:pointer;}
+  .stats{display:flex;gap:24px;margin:12px 0;font-size:16px;}
+  .stats b{color:#38bdf8;}
+  button{background:#38bdf8;color:#04222f;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;}
+  #msg{margin-top:12px;font-size:16px;font-weight:600;min-height:22px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Peg Solitaire</h1>
+<div class="sub">Jump pegs over adjacent pegs into empty holes. Removed peg disappears. Goal: one peg left, ideally in the center.</div>
+<div class="board" id="board"></div>
+<div class="stats">Pegs left: <b id="count">0</b></div>
+<button id="newBtn">New Game</button>
+<div id="msg"></div>
+<script>
+const board=document.getElementById('board'),msg=document.getElementById('msg');
+let grid,sel;
+const valid=(r,c)=>{ // English cross shape
+  if(r<0||r>6||c<0||c>6)return false;
+  if((r<2||r>4)&&(c<2||c>4))return false;return true;};
+function init(){
+  grid=[];for(let r=0;r<7;r++){grid.push([]);for(let c=0;c<7;c++){
+    if(!valid(r,c))grid[r].push(-1);
+    else grid[r].push(r===3&&c===3?0:1);}}
+  sel=null;msg.textContent='';render();
+}
+function moves(r,c){ // possible jumps from peg at r,c
+  const res=[];const dirs=[[0,2],[0,-2],[2,0],[-2,0]];
+  for(const [dr,dc] of dirs){const tr=r+dr,tc=c+dc,mr=r+dr/2,mc=c+dc/2;
+    if(valid(tr,tc)&&grid[tr][tc]===0&&grid[mr][mc]===1)res.push([tr,tc]);}
+  return res;
+}
+function anyMoves(){for(let r=0;r<7;r++)for(let c=0;c<7;c++)if(grid[r][c]===1&&moves(r,c).length)return true;return false;}
+function count(){let n=0;for(let r=0;r<7;r++)for(let c=0;c<7;c++)if(grid[r][c]===1)n++;return n;}
+function render(){
+  board.innerHTML='';
+  const targets=sel?moves(sel[0],sel[1]):[];
+  for(let r=0;r<7;r++)for(let c=0;c<7;c++){
+    const d=document.createElement('div');
+    if(grid[r][c]===-1){d.className='cell void';}
+    else if(grid[r][c]===1){d.className='cell peg'+(sel&&sel[0]===r&&sel[1]===c?' sel':'');
+      d.onclick=()=>{sel=(sel&&sel[0]===r&&sel[1]===c)?null:[r,c];render();};}
+    else{const isT=targets.some(t=>t[0]===r&&t[1]===c);
+      d.className='cell hole'+(isT?' target':'');
+      if(isT)d.onclick=()=>doMove(sel[0],sel[1],r,c);}
+    board.appendChild(d);
+  }
+  document.getElementById('count').textContent=count();
+}
+function doMove(r,c,tr,tc){
+  grid[r][c]=0;grid[(r+tr)/2][(c+tc)/2]=0;grid[tr][tc]=1;sel=null;render();
+  const n=count();
+  if(n===1){msg.style.color='#34d399';
+    msg.textContent=grid[3][3]===1?'Perfect! One peg in the center! 🏆':'Solved with one peg left! 🎉';}
+  else if(!anyMoves()){msg.style.color='#f87171';msg.textContent='No moves left — '+n+' pegs remain. Try again!';}
+  else msg.textContent='';
+}
+document.getElementById('newBtn').onclick=()=>{msg.style.color='#e2e8f0';init();};
+init();
+</script>
+</body>
+</html>

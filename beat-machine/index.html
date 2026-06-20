@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beat Machine</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 14px;font-size:22px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:18px;}
+  .controls{display:flex;gap:14px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+  button{background:#38bdf8;color:#04222f;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;}
+  button.sec{background:#1f2937;color:#e2e8f0;}
+  .bpm{display:flex;align-items:center;gap:8px;font-size:14px;color:#94a3b8;}
+  input[type=range]{width:120px;}
+  .grid{display:grid;gap:6px;}
+  .gridrow{display:grid;grid-template-columns:64px repeat(16,1fr);gap:5px;align-items:center;}
+  .label{font-size:13px;color:#cbd5e1;font-weight:600;}
+  .step{width:100%;aspect-ratio:1;min-width:22px;background:#0b1120;border:1px solid #1f2937;border-radius:6px;cursor:pointer;transition:transform .05s;}
+  .step:hover{border-color:#38bdf8;}
+  .step.on{background:#38bdf8;box-shadow:0 0 8px #38bdf8;}
+  .step.beat{border-color:#334155;}
+  .step.playing{outline:2px solid #fbbf24;}
+  .gridrow.kick .step.on{background:#f87171;box-shadow:0 0 8px #f87171;}
+  .gridrow.snare .step.on{background:#fbbf24;box-shadow:0 0 8px #fbbf24;}
+  .gridrow.hat .step.on{background:#34d399;box-shadow:0 0 8px #34d399;}
+  .gridrow.clap .step.on{background:#a78bfa;box-shadow:0 0 8px #a78bfa;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Beat Machine</h1>
+<div class="panel">
+  <div class="controls">
+    <button id="play">▶ Play</button>
+    <button class="sec" id="clear">Clear</button>
+    <button class="sec" id="rand">Random</button>
+    <div class="bpm">BPM <input type="range" id="bpm" min="60" max="200" value="120"><span id="bpmv">120</span></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const ROWS=[
+  {name:'Kick',cls:'kick'},
+  {name:'Snare',cls:'snare'},
+  {name:'Hat',cls:'hat'},
+  {name:'Clap',cls:'clap'},
+];
+const STEPS=16;
+let pattern=ROWS.map(()=>Array(STEPS).fill(false));
+let playing=false,step=0,timer=null,actx=null;
+const gridEl=document.getElementById('grid');
+function build(){
+  gridEl.innerHTML='';
+  ROWS.forEach((r,ri)=>{
+    const row=document.createElement('div');row.className='gridrow '+r.cls;
+    const lbl=document.createElement('div');lbl.className='label';lbl.textContent=r.name;row.appendChild(lbl);
+    for(let s=0;s<STEPS;s++){
+      const cell=document.createElement('div');
+      cell.className='step'+(pattern[ri][s]?' on':'')+(s%4===0?' beat':'');
+      cell.dataset.r=ri;cell.dataset.s=s;
+      cell.onclick=()=>{pattern[ri][s]=!pattern[ri][s];cell.classList.toggle('on');};
+      row.appendChild(cell);
+    }
+    gridEl.appendChild(row);
+  });
+}
+function ac(){if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();return actx;}
+function kick(t){const c=ac();const o=c.createOscillator(),g=c.createGain();
+  o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(50,t+.12);
+  g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);
+  o.connect(g).connect(c.destination);o.start(t);o.stop(t+.2);}
+function noise(t,dur,freq,q,gain){const c=ac();const b=c.createBuffer(1,c.sampleRate*dur,c.sampleRate);
+  const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const src=c.createBufferSource();src.buffer=b;const f=c.createBiquadFilter();
+  f.type='highpass';f.frequency.value=freq;f.Q.value=q;const g=c.createGain();
+  g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  src.connect(f).connect(g).connect(c.destination);src.start(t);src.stop(t+dur);}
+function snare(t){noise(t,.2,1000,.8,.6);const c=ac();const o=c.createOscillator(),g=c.createGain();
+  o.type='triangle';o.frequency.value=180;g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.001,t+.1);
+  o.connect(g).connect(c.destination);o.start(t);o.stop(t+.1);}
+function hat(t){noise(t,.05,7000,1,.3);}
+function clap(t){noise(t,.15,1500,.5,.5);}
+const SOUNDS=[kick,snare,hat,clap];
+function tick(){
+  const cells=gridEl.querySelectorAll('.step');
+  cells.forEach(c=>c.classList.remove('playing'));
+  const t=ac().currentTime;
+  ROWS.forEach((r,ri)=>{
+    if(pattern[ri][step])SOUNDS[ri](t);
+    const cell=gridEl.querySelector(`.step[data-r="${ri}"][data-s="${step}"]`);
+    if(cell)cell.classList.add('playing');
+  });
+  step=(step+1)%STEPS;
+}
+function schedule(){const bpm=+document.getElementById('bpm').value;const ms=(60/bpm/4)*1000;
+  clearInterval(timer);timer=setInterval(tick,ms);}
+document.getElementById('play').onclick=function(){
+  playing=!playing;this.textContent=playing?'⏸ Stop':'▶ Play';
+  if(playing){ac().resume();step=0;tick();schedule();}
+  else{clearInterval(timer);gridEl.querySelectorAll('.step').forEach(c=>c.classList.remove('playing'));}
+};
+document.getElementById('clear').onclick=()=>{pattern=ROWS.map(()=>Array(STEPS).fill(false));build();};
+document.getElementById('rand').onclick=()=>{pattern=ROWS.map((_, ri)=>Array.from({length:STEPS},()=>Math.random()<(ri===2?.4:.25)));build();};
+document.getElementById('bpm').oninput=function(){document.getElementById('bpmv').textContent=this.value;if(playing)schedule();};
+build();
+</script>
+</body>
+</html>

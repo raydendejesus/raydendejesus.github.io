@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Runner</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 4px;font-size:22px;}
+  .hud{display:flex;gap:20px;margin-bottom:10px;font-size:15px;}
+  .hud b{color:#38bdf8;}
+  canvas{background:#0b1120;border:1px solid #1f2937;border-radius:16px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:10px 16px;margin-top:10px;font-size:13px;color:#94a3b8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Neon Runner</h1>
+<div class="hud"><div>Distance <b id="dist">0</b></div><div>Best <b id="best">0</b></div></div>
+<canvas id="c" width="700" height="360"></canvas>
+<div class="panel">Press SPACE / click / tap to jump (double-jump allowed). Dodge the neon spikes. Speed ramps up!</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,GY=H-50;
+let player,obstacles,particles,trail,speed,dist,best=+localStorage.neonRunBest||0,gameOver,started,shake;
+document.getElementById('best').textContent=best;
+function init(){
+  player={x:90,y:GY-30,vy:0,size:30,jumps:0,rot:0};
+  obstacles=[];particles=[];trail=[];speed=5;dist=0;gameOver=false;started=false;shake=0;
+  spawnTimer=70;
+}
+let spawnTimer;
+function jump(){
+  if(gameOver){init();return;}
+  started=true;
+  if(player.jumps<2){player.vy=-11;player.jumps++;
+    for(let i=0;i<8;i++)particles.push({x:player.x,y:player.y+player.size,vx:(Math.random()-.5)*4,vy:Math.random()*3+1,life:1,c:'#38bdf8'});}
+}
+addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();jump();}});
+cv.addEventListener('mousedown',jump);
+cv.addEventListener('touchstart',e=>{e.preventDefault();jump();});
+function spawn(){
+  const tall=Math.random()<.4;
+  obstacles.push({x:W+20,w:24,h:tall?56:34});
+}
+function burst(x,y){for(let i=0;i<26;i++){const a=Math.random()*7,s=Math.random()*7+1;
+  particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,c:['#f87171','#fbbf24','#38bdf8'][i%3]});}}
+function update(){
+  if(!started||gameOver)return;
+  speed+=0.0025;dist+=speed/12;
+  document.getElementById('dist').textContent=Math.floor(dist);
+  player.vy+=0.62;player.y+=player.vy;
+  if(player.y+player.size>=GY){player.y=GY-player.size;player.vy=0;player.jumps=0;}
+  if(player.jumps>0)player.rot+=0.18;else player.rot=0;
+  trail.push({x:player.x,y:player.y,life:1});if(trail.length>14)trail.shift();
+  for(const t of trail)t.life-=0.07;
+  spawnTimer-=1;if(spawnTimer<=0){spawn();spawnTimer=Math.max(40,90-speed*3+Math.random()*30);}
+  for(const o of obstacles)o.x-=speed;
+  obstacles=obstacles.filter(o=>o.x>-40);
+  // collision
+  for(const o of obstacles){
+    if(player.x+player.size-6>o.x && player.x+6<o.x+o.w && player.y+player.size-4>GY-o.h){
+      gameOver=true;shake=18;burst(player.x+15,player.y+15);
+      if(Math.floor(dist)>best){best=Math.floor(dist);localStorage.neonRunBest=best;document.getElementById('best').textContent=best;}
+    }
+  }
+  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.life-=0.03;}
+  particles=particles.filter(p=>p.life>0);
+  if(shake>0)shake*=0.85;
+}
+function draw(){
+  ctx.save();
+  if(shake>0.5)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+  ctx.clearRect(-20,-20,W+40,H+40);
+  // ground glow
+  ctx.strokeStyle='#38bdf8';ctx.shadowColor='#38bdf8';ctx.shadowBlur=14;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(0,GY);ctx.lineTo(W,GY);ctx.stroke();ctx.shadowBlur=0;
+  // moving grid
+  ctx.strokeStyle='rgba(56,189,248,.12)';ctx.lineWidth=1;
+  for(let i=0;i<20;i++){const gx=((-dist*3)%40)+i*40;ctx.beginPath();ctx.moveTo(gx,GY);ctx.lineTo(gx-30,H);ctx.stroke();}
+  // trail
+  for(const t of trail){ctx.globalAlpha=t.life*0.4;ctx.fillStyle='#38bdf8';
+    ctx.fillRect(t.x,t.y,player.size,player.size);}
+  ctx.globalAlpha=1;
+  // obstacles (spikes)
+  for(const o of obstacles){ctx.fillStyle='#f87171';ctx.shadowColor='#f87171';ctx.shadowBlur=12;
+    ctx.beginPath();ctx.moveTo(o.x,GY);ctx.lineTo(o.x+o.w/2,GY-o.h);ctx.lineTo(o.x+o.w,GY);ctx.closePath();ctx.fill();ctx.shadowBlur=0;}
+  // player
+  ctx.save();ctx.translate(player.x+player.size/2,player.y+player.size/2);ctx.rotate(player.rot);
+  ctx.fillStyle='#38bdf8';ctx.shadowColor='#38bdf8';ctx.shadowBlur=16;
+  ctx.fillRect(-player.size/2,-player.size/2,player.size,player.size);
+  ctx.fillStyle='#0b1120';ctx.fillRect(-6,-6,12,12);ctx.restore();ctx.shadowBlur=0;
+  // particles
+  for(const p of particles){ctx.globalAlpha=p.life;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,4,4);}
+  ctx.globalAlpha=1;
+  ctx.restore();
+  if(!started){ctx.fillStyle='#e2e8f0';ctx.font='18px system-ui';ctx.textAlign='center';
+    ctx.fillText('Press SPACE to start',W/2,H/2);ctx.textAlign='left';}
+  if(gameOver){ctx.fillStyle='rgba(11,17,32,.75)';ctx.fillRect(0,H/2-50,W,100);
+    ctx.fillStyle='#f87171';ctx.font='bold 30px system-ui';ctx.textAlign='center';ctx.fillText('Crashed!',W/2,H/2-4);
+    ctx.fillStyle='#e2e8f0';ctx.font='15px system-ui';ctx.fillText('Distance '+Math.floor(dist)+' — click to retry',W/2,H/2+24);ctx.textAlign='left';}
+}
+function loop(){update();draw();requestAnimationFrame(loop);}
+init();loop();
+</script>
+</body>
+</html>

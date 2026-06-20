@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mastermind Code</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 6px;font-size:22px;}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:12px;}
+  .board{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:16px;width:340px;}
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .pegs{display:flex;gap:8px;}
+  .peg{width:32px;height:32px;border-radius:50%;border:1px solid #1f2937;background:#0b1120;}
+  .feedback{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:26px;}
+  .fb{width:10px;height:10px;border-radius:50%;background:#1f2937;}
+  .fb.black{background:#e2e8f0;}
+  .fb.white{background:#64748b;border:1px solid #94a3b8;}
+  .palette{display:flex;gap:10px;justify-content:center;margin:14px 0;flex-wrap:wrap;}
+  .swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s;}
+  .swatch:hover{transform:scale(1.12);}
+  .swatch.sel{border-color:#fff;}
+  .controls{display:flex;gap:10px;justify-content:center;margin-top:6px;}
+  button{background:#38bdf8;color:#04222f;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;}
+  button:disabled{opacity:.4;cursor:default;}
+  button.sec{background:#1f2937;color:#e2e8f0;}
+  #msg{margin-top:12px;font-size:16px;font-weight:600;min-height:22px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Mastermind Code</h1>
+<div class="sub">Crack the 4-color secret in 10 tries. White core = right color, right spot. Outline = right color, wrong spot.</div>
+<div class="board" id="board"></div>
+<div class="palette" id="palette"></div>
+<div class="controls">
+  <button id="check">Check Guess</button>
+  <button id="clearBtn" class="sec">Clear Row</button>
+  <button id="newBtn" class="sec">New Game</button>
+</div>
+<div id="msg"></div>
+<script>
+const COLORS=['#f87171','#fbbf24','#34d399','#38bdf8','#a78bfa','#f472b6'];
+const ROWS=10,LEN=4;
+let secret,rows,active,selColor,done;
+const board=document.getElementById('board'),palette=document.getElementById('palette'),msg=document.getElementById('msg');
+function init(){
+  secret=Array.from({length:LEN},()=>Math.floor(Math.random()*COLORS.length));
+  rows=Array.from({length:ROWS},()=>Array(LEN).fill(null));
+  active=0;done=false;selColor=0;msg.textContent='';
+  render();renderPalette();
+}
+function render(){
+  board.innerHTML='';
+  for(let r=ROWS-1;r>=0;r--){
+    const row=document.createElement('div');row.className='row';
+    const pegs=document.createElement('div');pegs.className='pegs';
+    for(let i=0;i<LEN;i++){
+      const p=document.createElement('div');p.className='peg';
+      const v=rows[r][i];if(v!==null)p.style.background=COLORS[v];
+      if(r===active&&!done){p.style.cursor='pointer';p.onclick=()=>{rows[r][i]=selColor;render();};}
+      pegs.appendChild(p);
+    }
+    const fb=document.createElement('div');fb.className='feedback';
+    const res=r<active?score(rows[r]):{black:0,white:0};
+    let dots=[];for(let i=0;i<res.black;i++)dots.push('black');for(let i=0;i<res.white;i++)dots.push('white');
+    while(dots.length<LEN)dots.push('');
+    for(const d of dots){const f=document.createElement('div');f.className='fb'+(d?' '+d:'');fb.appendChild(f);}
+    row.appendChild(pegs);row.appendChild(fb);board.appendChild(row);
+  }
+}
+function renderPalette(){
+  palette.innerHTML='';
+  COLORS.forEach((c,i)=>{const s=document.createElement('div');s.className='swatch'+(i===selColor?' sel':'');
+    s.style.background=c;s.onclick=()=>{selColor=i;renderPalette();};palette.appendChild(s);});
+}
+function score(guess){
+  let black=0,white=0;const s=[...secret],g=[...guess];
+  for(let i=0;i<LEN;i++)if(g[i]===s[i]){black++;s[i]=g[i]=-1;}
+  for(let i=0;i<LEN;i++){if(g[i]===-1)continue;const j=s.indexOf(g[i]);if(j>=0){white++;s[j]=-2;}}
+  return {black,white};
+}
+document.getElementById('check').onclick=()=>{
+  if(done)return;
+  if(rows[active].some(v=>v===null)){msg.textContent='Fill all 4 pegs first.';return;}
+  const res=score(rows[active]);active++;
+  if(res.black===LEN){done=true;msg.style.color='#34d399';msg.textContent='Cracked it in '+active+' tries! 🎉';}
+  else if(active>=ROWS){done=true;msg.style.color='#f87171';msg.textContent='Out of guesses! Code was revealed below.';revealSecret();}
+  else msg.textContent='';
+  render();
+};
+function revealSecret(){
+  const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+  const pegs=document.createElement('div');pegs.className='pegs';
+  secret.forEach(v=>{const p=document.createElement('div');p.className='peg';p.style.background=COLORS[v];pegs.appendChild(p);});
+  const lbl=document.createElement('span');lbl.textContent='secret';lbl.style.color='#64748b';lbl.style.fontSize='12px';
+  row.appendChild(pegs);row.appendChild(lbl);board.prepend(row);
+}
+document.getElementById('clearBtn').onclick=()=>{if(!done){rows[active]=Array(LEN).fill(null);render();}};
+document.getElementById('newBtn').onclick=()=>{msg.style.color='#e2e8f0';init();};
+init();
+</script>
+</body>
+</html>

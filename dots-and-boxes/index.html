@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dots and Boxes</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 6px;font-size:22px;}
+  .score{display:flex;gap:24px;margin-bottom:12px;font-size:16px;}
+  .you{color:#38bdf8;font-weight:700;}
+  .ai{color:#f472b6;font-weight:700;}
+  canvas{background:#111827;border:1px solid #1f2937;border-radius:16px;}
+  .controls{margin-top:12px;display:flex;gap:10px;align-items:center;}
+  button{background:#38bdf8;color:#04222f;border:none;border-radius:10px;padding:9px 16px;font-weight:700;cursor:pointer;}
+  select{background:#1f2937;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:8px;}
+  #turn{margin-top:10px;font-size:15px;min-height:20px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Dots and Boxes</h1>
+<div class="score">
+  <div class="you">You: <span id="ps">0</span></div>
+  <div class="ai">AI: <span id="as">0</span></div>
+</div>
+<canvas id="c" width="400" height="400"></canvas>
+<div id="turn"></div>
+<div class="controls">
+  <select id="size">
+    <option value="4">4 x 4</option>
+    <option value="5" selected>5 x 5</option>
+    <option value="6">6 x 6</option>
+  </select>
+  <button id="newBtn">New Game</button>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let GS,GAP,OFF,hLines,vLines,boxes,pScore,aScore,turn,busy,over;
+function init(){
+  GS=+document.getElementById('size').value;
+  GAP=Math.floor((cv.width-60)/(GS-1));OFF=30;
+  hLines=Array.from({length:GS},()=>Array(GS-1).fill(0));
+  vLines=Array.from({length:GS-1},()=>Array(GS).fill(0));
+  boxes=Array.from({length:GS-1},()=>Array(GS-1).fill(0));
+  pScore=0;aScore=0;turn=1;busy=false;over=false;
+  upd();draw();
+}
+function upd(){document.getElementById('ps').textContent=pScore;document.getElementById('as').textContent=aScore;
+  document.getElementById('turn').textContent=over?'':(turn===1?'Your turn':'AI thinking...');}
+function px(c){return OFF+c*GAP;}
+function py(r){return OFF+r*GAP;}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS-1;c++){
+    if(boxes[r][c]){ctx.fillStyle=boxes[r][c]===1?'rgba(56,189,248,.22)':'rgba(244,114,182,.22)';
+      ctx.fillRect(px(c),py(r),GAP,GAP);
+      ctx.fillStyle=boxes[r][c]===1?'#38bdf8':'#f472b6';ctx.font='bold 20px system-ui';ctx.textAlign='center';
+      ctx.fillText(boxes[r][c]===1?'Y':'A',px(c)+GAP/2,py(r)+GAP/2+7);}}
+  ctx.lineWidth=4;ctx.lineCap='round';
+  for(let r=0;r<GS;r++)for(let c=0;c<GS-1;c++){ctx.strokeStyle=hLines[r][c]?'#e2e8f0':'#1f2937';
+    ctx.beginPath();ctx.moveTo(px(c),py(r));ctx.lineTo(px(c+1),py(r));ctx.stroke();}
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS;c++){ctx.strokeStyle=vLines[r][c]?'#e2e8f0':'#1f2937';
+    ctx.beginPath();ctx.moveTo(px(c),py(r));ctx.lineTo(px(c),py(r+1));ctx.stroke();}
+  ctx.fillStyle='#64748b';
+  for(let r=0;r<GS;r++)for(let c=0;c<GS;c++){ctx.beginPath();ctx.arc(px(c),py(r),4,0,7);ctx.fill();}
+  ctx.textAlign='left';
+  if(over){ctx.fillStyle='rgba(11,17,32,.8)';ctx.fillRect(0,cv.height/2-40,cv.width,80);
+    ctx.fillStyle=pScore>aScore?'#38bdf8':pScore<aScore?'#f472b6':'#e2e8f0';ctx.font='bold 26px system-ui';ctx.textAlign='center';
+    ctx.fillText(pScore>aScore?'You win!':pScore<aScore?'AI wins!':'Tie!',cv.width/2,cv.height/2+8);ctx.textAlign='left';}
+}
+function edges(){const list=[];
+  for(let r=0;r<GS;r++)for(let c=0;c<GS-1;c++)if(!hLines[r][c])list.push({t:'h',r,c});
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS;c++)if(!vLines[r][c])list.push({t:'v',r,c});return list;}
+function boxSides(r,c){return hLines[r][c]+hLines[r+1][c]+vLines[r][c]+vLines[r][c+1];}
+function applyMove(m,player){
+  if(m.t==='h')hLines[m.r][m.c]=1;else vLines[m.r][m.c]=1;
+  let made=0;
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS-1;c++){
+    if(!boxes[r][c]&&boxSides(r,c)===4){boxes[r][c]=player;made++;if(player===1)pScore++;else aScore++;}}
+  return made;
+}
+function checkOver(){if(edges().length===0){over=true;}upd();}
+cv.addEventListener('click',e=>{
+  if(busy||over||turn!==1)return;
+  const rc=cv.getBoundingClientRect();const mx=e.clientX-rc.left,my=e.clientY-rc.top;
+  const m=pickEdge(mx,my);if(!m)return;
+  const made=applyMove(m,1);draw();
+  if(made>0){checkOver();if(!over)return;}
+  else{turn=2;}
+  upd();draw();
+  if(!over&&turn===2){busy=true;setTimeout(aiTurn,450);}
+});
+function pickEdge(mx,my){
+  let best=null,bd=18;
+  for(const m of edges()){let x1,y1,x2,y2;
+    if(m.t==='h'){x1=px(m.c);y1=py(m.r);x2=px(m.c+1);y2=py(m.r);}
+    else{x1=px(m.c);y1=py(m.r);x2=px(m.c);y2=py(m.r+1);}
+    const d=distSeg(mx,my,x1,y1,x2,y2);if(d<bd){bd=d;best=m;}}
+  return best;
+}
+function distSeg(px_,py_,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1;const l2=dx*dx+dy*dy;
+  let t=l2?((px_-x1)*dx+(py_-y1)*dy)/l2:0;t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px_-(x1+t*dx),py_-(y1+t*dy));}
+function wouldComplete(m){ // count boxes it completes
+  if(m.t==='h')hLines[m.r][m.c]=1;else vLines[m.r][m.c]=1;
+  let cnt=0;
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS-1;c++)if(!boxes[r][c]&&boxSides(r,c)===4)cnt++;
+  if(m.t==='h')hLines[m.r][m.c]=0;else vLines[m.r][m.c]=0;return cnt;}
+function makes3(m){ // creates a box with 3 sides (gives opponent)
+  if(m.t==='h')hLines[m.r][m.c]=1;else vLines[m.r][m.c]=1;
+  let bad=false;
+  for(let r=0;r<GS-1;r++)for(let c=0;c<GS-1;c++)if(!boxes[r][c]&&boxSides(r,c)===3)bad=true;
+  if(m.t==='h')hLines[m.r][m.c]=0;else vLines[m.r][m.c]=0;return bad;}
+function aiTurn(){
+  if(over){busy=false;return;}
+  const avail=edges();
+  let move=avail.find(m=>wouldComplete(m)>0); // greedy: complete a box
+  if(!move){const safe=avail.filter(m=>!makes3(m));move=safe.length?safe[Math.floor(Math.random()*safe.length)]:avail[Math.floor(Math.random()*avail.length)];}
+  const made=applyMove(move,2);draw();
+  if(made>0&&edges().length>0){setTimeout(aiTurn,450);return;}
+  turn=1;busy=false;checkOver();upd();draw();
+}
+document.getElementById('newBtn').onclick=init;
+init();
+</script>
+</body>
+</html>

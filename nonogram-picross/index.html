@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nonogram Picross</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e2e8f0;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;}
+  a.back{position:fixed;top:14px;left:16px;color:#38bdf8;text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0 6px;font-size:22px;}
+  .sub{color:#94a3b8;font-size:13px;margin-bottom:12px;text-align:center;max-width:420px;}
+  .wrap{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:14px;}
+  table{border-collapse:collapse;}
+  td{border:1px solid #1f2937;}
+  td.clue{font-size:11px;color:#94a3b8;text-align:center;vertical-align:bottom;line-height:1.1;padding:2px;min-width:26px;}
+  td.rclue{text-align:right;padding-right:6px;white-space:nowrap;}
+  td.cell{width:26px;height:26px;background:#0b1120;cursor:pointer;}
+  td.cell.fill{background:#38bdf8;}
+  td.cell.mark{position:relative;}
+  td.cell.mark::after{content:'×';color:#64748b;display:block;text-align:center;line-height:26px;}
+  .controls{display:flex;gap:10px;margin-top:14px;}
+  button{background:#1f2937;color:#e2e8f0;border:none;border-radius:10px;padding:9px 16px;font-weight:600;cursor:pointer;}
+  button.acc{background:#38bdf8;color:#04222f;font-weight:700;}
+  #msg{margin-top:12px;font-size:16px;font-weight:600;min-height:22px;color:#34d399;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Nonogram Picross</h1>
+<div class="sub">Use the number clues to fill the right squares. Left-click = fill, right-click = mark empty. Reveal the hidden picture!</div>
+<div class="wrap"><table id="grid"></table></div>
+<div class="controls">
+  <button class="acc" id="newBtn">New Puzzle</button>
+  <button id="resetBtn">Reset</button>
+  <button id="checkBtn">Check</button>
+</div>
+<div id="msg"></div>
+<script>
+const N=8;
+let sol,state;
+const gridEl=document.getElementById('grid'),msg=document.getElementById('msg');
+function genSolution(){
+  const s=[];for(let r=0;r<N;r++){const row=[];for(let c=0;c<N;c++)row.push(Math.random()<0.55?1:0);s.push(row);}
+  // ensure not empty rows/cols
+  for(let r=0;r<N;r++)if(s[r].every(v=>!v))s[r][Math.floor(Math.random()*N)]=1;
+  for(let c=0;c<N;c++)if(s.every(row=>!row[c]))s[Math.floor(Math.random()*N)][c]=1;
+  return s;
+}
+function clues(line){
+  const res=[];let run=0;for(const v of line){if(v){run++;}else if(run){res.push(run);run=0;}}
+  if(run)res.push(run);return res.length?res:[0];
+}
+function rowClue(r){return clues(sol[r]);}
+function colClue(c){return clues(sol.map(row=>row[c]));}
+function init(){
+  sol=genSolution();state=Array.from({length:N},()=>Array(N).fill(0));msg.textContent='';render();
+}
+function render(){
+  gridEl.innerHTML='';
+  const maxColClue=Math.max(...Array.from({length:N},(_, c)=>colClue(c).length));
+  // header rows for column clues
+  for(let h=0;h<maxColClue;h++){
+    const tr=document.createElement('tr');
+    const corner=document.createElement('td');corner.className='clue';tr.appendChild(corner);
+    if(h<maxColClue-0){}
+    for(let c=0;c<N;c++){
+      const cc=colClue(c);const td=document.createElement('td');td.className='clue';
+      const idx=h-(maxColClue-cc.length);
+      td.textContent=idx>=0?cc[idx]:'';tr.appendChild(td);
+    }
+    gridEl.appendChild(tr);
+  }
+  for(let r=0;r<N;r++){
+    const tr=document.createElement('tr');
+    const rc=document.createElement('td');rc.className='clue rclue';rc.textContent=rowClue(r).join(' ');tr.appendChild(rc);
+    for(let c=0;c<N;c++){
+      const td=document.createElement('td');td.className='cell'+(state[r][c]===1?' fill':state[r][c]===2?' mark':'');
+      td.oncontextmenu=e=>{e.preventDefault();state[r][c]=state[r][c]===2?0:2;render();};
+      td.onclick=()=>{state[r][c]=state[r][c]===1?0:1;render();autoCheck();};
+      tr.appendChild(td);
+    }
+    gridEl.appendChild(tr);
+  }
+}
+function solved(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const filled=state[r][c]===1;if(filled!==(sol[r][c]===1))return false;}
+  return true;
+}
+function autoCheck(){if(solved()){msg.style.color='#34d399';msg.textContent='Solved! 🎉';}}
+document.getElementById('newBtn').onclick=init;
+document.getElementById('resetBtn').onclick=()=>{state=Array.from({length:N},()=>Array(N).fill(0));msg.textContent='';render();};
+document.getElementById('checkBtn').onclick=()=>{
+  if(solved()){msg.style.color='#34d399';msg.textContent='Solved! 🎉';}
+  else{msg.style.color='#f87171';msg.textContent='Not yet — keep going.';}
+};
+init();
+</script>
+</body>
+</html>
