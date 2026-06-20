@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rayden · Projects</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+      color: #e2e8f0; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; padding: 64px 20px;
+    }
+    header { text-align: center; margin-bottom: 48px; }
+    h1 { font-size: 2.7rem; letter-spacing: -1px; }
+    .accent { color: #38bdf8; }
+    header p { color: #94a3b8; margin-top: 10px; font-size: 1.05rem; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 20px; width: 100%; max-width: 980px;
+    }
+    a.card {
+      text-decoration: none; color: inherit; background: #111827;
+      border: 1px solid #1f2937; border-radius: 16px; padding: 24px;
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    a.card:hover {
+      transform: translateY(-4px); border-color: #38bdf8;
+      box-shadow: 0 12px 30px rgba(56,189,248,.12);
+    }
+    .emoji { font-size: 2rem; }
+    .card h2 { font-size: 1.18rem; margin: 14px 0 6px; }
+    .card p { color: #94a3b8; font-size: .9rem; line-height: 1.45; }
+    footer { margin-top: 56px; color: #64748b; font-size: .85rem; text-align: center; }
+    footer a { color: #38bdf8; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hi, I'm <span class="accent">Rayden</span> 👋</h1>
+    <p>A collection of small things I built. Click any card to try it live.</p>
+  </header>
+
+  <main class="grid">
+    <a class="card" href="https://raydendejesus.github.io/maze-runner/">
+      <div class="emoji">🌀</div><h2>Maze Runner</h2>
+      <p>Procedural mazes with a one-click path solver. Arrow keys or swipe.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/particle-constellation/">
+      <div class="emoji">✨</div><h2>Particle Constellation</h2>
+      <p>An animated node network that follows your mouse and bursts on click.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/palette-forge/">
+      <div class="emoji">🎨</div><h2>Palette Forge</h2>
+      <p>Generate color palettes with harmony modes. Lock and copy hex codes.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/markdown-preview/">
+      <div class="emoji">📝</div><h2>Markdown Preview</h2>
+      <p>Live split-pane Markdown editor with a from-scratch parser.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/username-generator/">
+      <div class="emoji">🏷️</div><h2>Username Generator</h2>
+      <p>Generate handles across 5 styles, with one-click copy.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/dice-roller/">
+      <div class="emoji">🎲</div><h2>Dice Roller</h2>
+      <p>Roll up to six pip dice, see the total, shake on roll.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/tip-calculator/">
+      <div class="emoji">💵</div><h2>Tip Calculator</h2>
+      <p>Tip %, split by people, live totals and per-person amounts.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/password-generator/">
+      <div class="emoji">🔐</div><h2>Password Generator</h2>
+      <p>Length slider, character options, strength bar and copy button.</p>
+    </a>
+    <a class="card" href="https://raydendejesus.github.io/pomodoro-timer/">
+      <div class="emoji">🍅</div><h2>Pomodoro Timer</h2>
+      <p>25/5 work-break timer with a built-in beep. Stay focused.</p>
+    </a>
+  </main>
+
+  <footer>
+    Built with plain HTML, CSS &amp; JavaScript ·
+    <a href="https://github.com/raydendejesus">github.com/raydendejesus</a>
+  </footer>
+</body>
+</html>
