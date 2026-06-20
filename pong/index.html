@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pong</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:16px;}
+  canvas{display:block;border-radius:12px;background:#0b1120;}
+  .hint{text-align:center;margin-top:10px;color:#94a3b8;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;margin-top:8px;}
+  button:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Pong</h1>
+<div class="panel"><canvas id="c" width="640" height="400"></canvas></div>
+<p class="hint">Move mouse or use <b>↑ / ↓</b>. First to 7 wins.</p>
+<button id="restart">Restart</button>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,PW=12,PH=78,BR=8,WIN=7;
+let p,ai,ball,sp,sa,over,keys={};
+function reset(serveTo){
+  p={y:H/2-PH/2};ai={y:H/2-PH/2};
+  ball={x:W/2,y:H/2,vx:(serveTo||1)*4.5,vy:(Math.random()*4-2)};
+  if(over!==undefined){}
+}
+function newGame(){sp=0;sa=0;over=false;reset(1);}
+function update(){
+  if(over)return;
+  // player keyboard
+  if(keys['ArrowUp'])p.y-=6;
+  if(keys['ArrowDown'])p.y+=6;
+  p.y=Math.max(0,Math.min(H-PH,p.y));
+  // ai tracks ball with limited speed
+  const target=ball.y-PH/2;
+  if(ai.y+PH/2<ball.y-8)ai.y+=4.4;
+  else if(ai.y+PH/2>ball.y+8)ai.y-=4.4;
+  ai.y=Math.max(0,Math.min(H-PH,ai.y));
+  // ball
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  if(ball.y-BR<0||ball.y+BR>H){ball.vy*=-1;ball.y=Math.max(BR,Math.min(H-BR,ball.y));}
+  // paddle collisions
+  if(ball.vx<0&&ball.x-BR<PW+20&&ball.x>20&&ball.y>p.y&&ball.y<p.y+PH){
+    ball.vx=Math.abs(ball.vx)*1.05;ball.vy+=((ball.y-(p.y+PH/2))/PH)*5;
+  }
+  if(ball.vx>0&&ball.x+BR>W-PW-20&&ball.x<W-20&&ball.y>ai.y&&ball.y<ai.y+PH){
+    ball.vx=-Math.abs(ball.vx)*1.05;ball.vy+=((ball.y-(ai.y+PH/2))/PH)*5;
+  }
+  ball.vx=Math.max(-9,Math.min(9,ball.vx));
+  // scoring
+  if(ball.x<0){sa++;check(-1);}
+  if(ball.x>W){sp++;check(1);}
+}
+function check(serve){
+  if(sp>=WIN||sa>=WIN)over=true;else reset(serve);
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#1f2937';ctx.setLineDash([8,12]);ctx.beginPath();
+  ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#38bdf8';ctx.fillRect(20,p.y,PW,PH);
+  ctx.fillStyle='#f87171';ctx.fillRect(W-PW-20,ai.y,PW,PH);
+  ctx.fillStyle='#e2e8f0';
+  ctx.beginPath();ctx.arc(ball.x,ball.y,BR,0,7);ctx.fill();
+  ctx.font='bold 40px system-ui';ctx.textAlign='center';
+  ctx.fillText(sp,W/2-50,52);ctx.fillText(sa,W/2+50,52);
+  if(over){
+    ctx.fillStyle='rgba(11,17,32,.75)';ctx.fillRect(0,H/2-50,W,100);
+    ctx.fillStyle='#38bdf8';ctx.font='bold 32px system-ui';
+    ctx.fillText(sp>sa?'You Win! 🎉':'AI Wins',W/2,H/2+10);
+  }
+}
+function loop(){update();draw();requestAnimationFrame(loop);}
+cv.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect();
+  p.y=Math.max(0,Math.min(H-PH,(e.clientY-r.top)*(H/r.height)-PH/2));
+});
+window.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')){keys[e.key]=true;e.preventDefault();}});
+window.addEventListener('keyup',e=>{keys[e.key]=false;});
+document.getElementById('restart').addEventListener('click',newGame);
+newGame();loop();
+</script>
+</body>
+</html>

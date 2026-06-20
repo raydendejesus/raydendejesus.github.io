@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spirograph</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;z-index:5;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  canvas{display:block;border-radius:12px;background:#0b1120;}
+  .controls{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:12px;align-items:flex-end;}
+  .ctl{display:flex;flex-direction:column;font-size:13px;color:#94a3b8;}
+  input[type=range]{accent-color:#38bdf8;width:120px;}
+  input[type=color]{width:44px;height:30px;border:1px solid #1f2937;border-radius:8px;background:#0b1120;cursor:pointer;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer;}
+  button:hover{border-color:#38bdf8;}
+  label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#94a3b8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Spirograph</h1>
+<div class="panel"><canvas id="c" width="560" height="560"></canvas></div>
+<div class="controls">
+  <div class="ctl">Fixed R: <span id="Rv">130</span><input id="R" type="range" min="60" max="240" value="130"></div>
+  <div class="ctl">Rolling r: <span id="rv">62</span><input id="r" type="range" min="10" max="160" value="62"></div>
+  <div class="ctl">Pen d: <span id="dv">80</span><input id="d" type="range" min="10" max="180" value="80"></div>
+  <div class="ctl">Speed: <span id="sv">1.0</span><input id="speed" type="range" min="0.2" max="4" value="1" step="0.1"></div>
+  <div class="ctl">Color<input id="color" type="color" value="#38bdf8"></div>
+  <label class="chk"><input id="rainbow" type="checkbox" checked> rainbow</label>
+  <button id="restart">Redraw</button>
+  <button id="png">Save PNG</button>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height,cx=W/2,cy=H/2;
+const ids=['R','r','d','speed'];
+const get=id=>+document.getElementById(id).value;
+let theta,prev,hue,running;
+function gcd(a,b){return b?gcd(b,a%b):a;}
+function point(R,r,d,t){
+  const k=R-r;
+  return{x:cx+k*Math.cos(t)+d*Math.cos(k/r*t),y:cy+k*Math.sin(t)-d*Math.sin(k/r*t)};
+}
+function reset(){
+  ctx.fillStyle='#0b1120';ctx.fillRect(0,0,W,H);
+  theta=0;hue=200;
+  prev=point(get('R'),get('r'),get('d'),0);
+  running=true;
+}
+function loop(){
+  if(running){
+    const R=get('R'),r=Math.max(2,get('r')),d=get('d'),speed=get('speed');
+    const steps=Math.ceil(speed*6);
+    const rainbow=document.getElementById('rainbow').checked;
+    const baseColor=document.getElementById('color').value;
+    const g=gcd(R,r),turns=r/g;const maxT=Math.PI*2*turns;
+    for(let i=0;i<steps;i++){
+      theta+=0.025;
+      const p=point(R,r,d,theta);
+      ctx.strokeStyle=rainbow?`hsl(${hue%360},90%,62%)`:baseColor;
+      ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+      prev=p;hue+=0.6;
+      if(theta>=maxT){running=false;break;}
+    }
+  }
+  requestAnimationFrame(loop);
+}
+ids.forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  document.getElementById(id+'v').textContent=id==='speed'?get(id).toFixed(1):get(id);
+  reset();
+}));
+document.getElementById('restart').addEventListener('click',reset);
+document.getElementById('png').addEventListener('click',()=>{
+  const a=document.createElement('a');a.download='spirograph.png';a.href=cv.toDataURL('image/png');a.click();
+});
+reset();loop();
+</script>
+</body>
+</html>

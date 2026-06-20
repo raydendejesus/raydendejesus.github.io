@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lane Dodger</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;z-index:5;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:22px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 12px;}
+  canvas{background:#0a0f1c;border:1px solid #1f2937;border-radius:14px;max-width:95vw;touch-action:none;}
+  .hud{margin-top:10px;color:#94a3b8;font-size:14px;}
+  .hud b{color:#e2e8f0;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Lane Dodger</h1>
+<p class="sub">← → (or A/D) to change lanes · Enter to (re)start</p>
+<canvas id="c" width="400" height="560"></canvas>
+<div class="hud">Distance <b id="dist">0</b> m · Best <b id="best">0</b> · <span id="msg">Press Enter to start</span></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height;
+const LANES=4;
+const laneW=W/LANES;
+const colors=['#f87171','#fbbf24','#4ade80','#a78bfa','#fb923c'];
+let lane,targetX,obstacles,dist,speed,running=false,gameover=false,spawnTimer,best=0,roadOff=0;
+
+function laneCenter(i){return i*laneW+laneW/2;}
+function start(){
+  lane=Math.floor(LANES/2);targetX=laneCenter(lane);
+  obstacles=[];dist=0;speed=4;spawnTimer=0;gameover=false;running=true;roadOff=0;
+  document.getElementById('msg').textContent='Dodge!';
+  update();
+}
+function move(d){
+  if(gameover)return;
+  lane=Math.max(0,Math.min(LANES-1,lane+d));
+  targetX=laneCenter(lane);
+}
+addEventListener('keydown',e=>{
+  if(["ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();
+  if(e.code==='ArrowLeft'||e.key==='a'||e.key==='A')move(-1);
+  if(e.code==='ArrowRight'||e.key==='d'||e.key==='D')move(1);
+  if(e.code==='Enter'&&(!running||gameover))start();
+});
+const player={x:laneCenter(2),y:H-70,w:laneW*0.5,h:64};
+
+function spawn(){
+  // spawn 1-2 obstacles in distinct lanes, leaving at least one open
+  const open=Math.floor(Math.random()*LANES);
+  const count=Math.random()<0.4?2:1;
+  let placed=0;
+  const used=new Set();
+  for(let i=0;i<LANES&&placed<count;i++){
+    const l=(open+1+i)%LANES;
+    if(l===open||used.has(l))continue;
+    used.add(l);
+    obstacles.push({lane:l,x:laneCenter(l),y:-70,w:laneW*0.5,h:60,color:colors[Math.floor(Math.random()*colors.length)]});
+    placed++;
+  }
+}
+function update(){
+  if(!running)return;
+  requestAnimationFrame(update);
+  ctx.clearRect(0,0,W,H);
+  // road markings
+  roadOff=(roadOff+speed)%40;
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=2;
+  for(let i=1;i<LANES;i++){
+    ctx.setLineDash([20,20]);ctx.lineDashOffset=-roadOff;
+    ctx.beginPath();ctx.moveTo(i*laneW,0);ctx.lineTo(i*laneW,H);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  if(!gameover){
+    dist+=speed/6;
+    speed=4+dist/120;
+    spawnTimer-=speed;
+    if(spawnTimer<=0){spawn();spawnTimer=180+Math.random()*120;}
+    player.x+=(targetX-player.x)*0.3;
+    for(const o of obstacles){o.y+=speed;}
+    obstacles=obstacles.filter(o=>o.y<H+80);
+    // collision
+    for(const o of obstacles){
+      if(o.lane===lane&&Math.abs(o.y- player.y)<(o.h+player.h)/2-10){
+        gameover=true;
+        best=Math.max(best,Math.floor(dist));
+        document.getElementById('best').textContent=best;
+        document.getElementById('msg').textContent='Crash! Enter to retry';
+      }
+    }
+  }
+  // draw obstacles
+  for(const o of obstacles){
+    ctx.fillStyle=o.color;
+    roundRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h,8);ctx.fill();
+  }
+  // player
+  ctx.fillStyle=gameover?'#64748b':'#38bdf8';
+  roundRect(player.x-player.w/2,player.y-player.h/2,player.w,player.h,8);ctx.fill();
+  ctx.fillStyle='#0a0f1c';
+  roundRect(player.x-player.w/2+6,player.y-player.h/2+8,player.w-12,14,4);ctx.fill();
+  document.getElementById('dist').textContent=Math.floor(dist);
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+</script>
+</body>
+</html>

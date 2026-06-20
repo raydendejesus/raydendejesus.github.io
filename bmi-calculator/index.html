@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMI Calculator</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 14px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:26px;width:min(92vw,440px);}
+  .tabs{display:flex;gap:8px;margin-bottom:18px;}
+  .tabs button{flex:1;background:#1f2937;color:#e2e8f0;border:none;border-radius:10px;padding:9px;
+    cursor:pointer;font-weight:600;}
+  .tabs button.active{background:var(--accent);color:#082f49;}
+  label{display:block;font-size:13px;color:#94a3b8;margin:12px 0 5px;}
+  .field{display:flex;gap:8px;}
+  input{width:100%;padding:11px;border-radius:9px;border:1px solid #1f2937;background:#0b1120;
+    color:#e2e8f0;font-size:16px;outline:none;}
+  input:focus{border-color:var(--accent);}
+  .unit{display:flex;align-items:center;color:#94a3b8;font-size:14px;min-width:42px;}
+  .result{margin-top:22px;text-align:center;}
+  .bmiVal{font-size:46px;font-weight:800;}
+  .cat{font-size:18px;font-weight:700;margin-top:2px;}
+  .gauge{height:14px;border-radius:8px;margin:18px 0 6px;position:relative;
+    background:linear-gradient(to right,#3b82f6 0%,#3b82f6 18.5%,#4ade80 18.5%,#4ade80 25%,#fbbf24 25%,#fbbf24 30%,#f87171 30%,#f87171 100%);}
+  .needle{position:absolute;top:-6px;width:4px;height:26px;background:#e2e8f0;border-radius:2px;
+    transform:translateX(-50%);transition:left .3s;box-shadow:0 0 6px rgba(0,0,0,.6);}
+  .ticks{display:flex;justify-content:space-between;font-size:11px;color:#64748b;}
+  .ranges{margin-top:16px;font-size:13px;color:#94a3b8;line-height:1.7;}
+  .ranges b{color:#e2e8f0;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>BMI Calculator</h1>
+<div class="panel">
+  <div class="tabs">
+    <button id="tMetric" class="active">Metric</button>
+    <button id="tImperial">Imperial</button>
+  </div>
+
+  <div id="metric">
+    <label>Height</label>
+    <div class="field"><input id="mH" type="number" inputmode="decimal" value="175"><span class="unit">cm</span></div>
+    <label>Weight</label>
+    <div class="field"><input id="mW" type="number" inputmode="decimal" value="70"><span class="unit">kg</span></div>
+  </div>
+
+  <div id="imperial" style="display:none">
+    <label>Height</label>
+    <div class="field">
+      <input id="iFt" type="number" inputmode="decimal" value="5"><span class="unit">ft</span>
+      <input id="iIn" type="number" inputmode="decimal" value="9"><span class="unit">in</span>
+    </div>
+    <label>Weight</label>
+    <div class="field"><input id="iW" type="number" inputmode="decimal" value="154"><span class="unit">lb</span></div>
+  </div>
+
+  <div class="result">
+    <div class="bmiVal" id="bmiVal">—</div>
+    <div class="cat" id="cat">Enter your details</div>
+    <div class="gauge"><div class="needle" id="needle" style="left:0%"></div></div>
+    <div class="ticks"><span>15</span><span>18.5</span><span>25</span><span>30</span><span>40</span></div>
+  </div>
+  <div class="ranges">
+    <div><b style="color:#3b82f6">Underweight</b> &lt; 18.5</div>
+    <div><b style="color:#4ade80">Normal</b> 18.5 – 24.9</div>
+    <div><b style="color:#fbbf24">Overweight</b> 25 – 29.9</div>
+    <div><b style="color:#f87171">Obese</b> ≥ 30</div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let metric=true;
+function show(m){
+  metric=m;
+  $('tMetric').classList.toggle('active',m);
+  $('tImperial').classList.toggle('active',!m);
+  $('metric').style.display=m?'':'none';
+  $('imperial').style.display=m?'none':'';
+  calc();
+}
+$('tMetric').onclick=()=>show(true);
+$('tImperial').onclick=()=>show(false);
+
+function category(b){
+  if(b<18.5)return['Underweight','#3b82f6'];
+  if(b<25)return['Normal weight','#4ade80'];
+  if(b<30)return['Overweight','#fbbf24'];
+  return['Obese','#f87171'];
+}
+function calc(){
+  let bmi;
+  if(metric){
+    const h=parseFloat($('mH').value)/100,w=parseFloat($('mW').value);
+    if(!(h>0)||!(w>0)){return reset();}
+    bmi=w/(h*h);
+  }else{
+    const ft=parseFloat($('iFt').value)||0,inch=parseFloat($('iIn').value)||0,w=parseFloat($('iW').value);
+    const totalIn=ft*12+inch;
+    if(!(totalIn>0)||!(w>0)){return reset();}
+    bmi=703*w/(totalIn*totalIn);
+  }
+  if(!isFinite(bmi))return reset();
+  const [name,col]=category(bmi);
+  $('bmiVal').textContent=bmi.toFixed(1);
+  $('bmiVal').style.color=col;
+  $('cat').textContent=name;$('cat').style.color=col;
+  // needle: map 15..40 -> 0..100%
+  const pct=Math.max(0,Math.min(100,(bmi-15)/(40-15)*100));
+  $('needle').style.left=pct+'%';
+}
+function reset(){
+  $('bmiVal').textContent='—';$('bmiVal').style.color='#e2e8f0';
+  $('cat').textContent='Enter your details';$('cat').style.color='#94a3b8';
+  $('needle').style.left='0%';
+}
+['mH','mW','iFt','iIn','iW'].forEach(id=>$(id).addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:16px;}
+  .bar{display:flex;gap:10px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;}
+  select,button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer;}
+  button:hover,select:hover{border-color:#38bdf8;}
+  #grid{display:grid;grid-template-columns:repeat(9,40px);grid-template-rows:repeat(9,40px);background:#475569;gap:1px;border:3px solid #475569;border-radius:6px;overflow:hidden;}
+  .cell{background:#0b1120;border:none;color:#e2e8f0;font:inherit;font-size:18px;text-align:center;outline:none;width:40px;height:40px;}
+  .cell.given{color:#38bdf8;font-weight:700;}
+  .cell:focus{background:#1e293b;}
+  .cell.conflict{background:#5b1717;color:#fca5a5;}
+  .cell.r2{border-right:2px solid #475569;}
+  .cell.b2{border-bottom:2px solid #475569;}
+  #msg{text-align:center;margin-top:12px;min-height:24px;font-weight:600;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Sudoku</h1>
+<div class="panel">
+  <div class="bar">
+    <select id="diff">
+      <option value="38">Easy</option>
+      <option value="46" selected>Medium</option>
+      <option value="54">Hard</option>
+    </select>
+    <button id="new">New</button>
+    <button id="check">Check</button>
+    <button id="solve">Solve</button>
+  </div>
+  <div id="grid"></div>
+  <div id="msg"></div>
+</div>
+<script>
+const gridEl=document.getElementById('grid'),msgEl=document.getElementById('msg');
+let solution,puzzle,cells=[];
+function emptyBoard(){return Array.from({length:9},()=>Array(9).fill(0));}
+function valid(b,r,c,n){
+  for(let i=0;i<9;i++)if(b[r][i]===n||b[i][c]===n)return false;
+  const br=r-r%3,bc=c-c%3;
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++)if(b[br+i][bc+j]===n)return false;
+  return true;
+}
+function solve(b){
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    if(b[r][c]===0){
+      const nums=shuffle([1,2,3,4,5,6,7,8,9]);
+      for(const n of nums)if(valid(b,r,c,n)){b[r][c]=n;if(solve(b))return true;b[r][c]=0;}
+      return false;
+    }
+  }
+  return true;
+}
+function countSolutions(b,limit=2){
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    if(b[r][c]===0){
+      let total=0;
+      for(let n=1;n<=9;n++)if(valid(b,r,c,n)){b[r][c]=n;total+=countSolutions(b,limit);b[r][c]=0;if(total>=limit)return total;}
+      return total;
+    }
+  }
+  return 1;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function generate(holes){
+  solution=emptyBoard();solve(solution);
+  puzzle=solution.map(r=>r.slice());
+  const order=shuffle([...Array(81).keys()]);
+  let removed=0;
+  for(const idx of order){
+    if(removed>=holes)break;
+    const r=Math.floor(idx/9),c=idx%9;
+    const backup=puzzle[r][c];if(backup===0)continue;
+    puzzle[r][c]=0;
+    const copy=puzzle.map(x=>x.slice());
+    if(countSolutions(copy,2)!==1){puzzle[r][c]=backup;}
+    else removed++;
+  }
+}
+function render(){
+  gridEl.innerHTML='';cells=[];
+  for(let r=0;r<9;r++){cells.push([]);for(let c=0;c<9;c++){
+    const inp=document.createElement('input');
+    inp.className='cell';inp.maxLength=1;inp.inputMode='numeric';
+    if(c===2||c===5)inp.classList.add('r2');
+    if(r===2||r===5)inp.classList.add('b2');
+    if(puzzle[r][c]!==0){inp.value=puzzle[r][c];inp.classList.add('given');inp.readOnly=true;}
+    inp.addEventListener('input',()=>{
+      inp.value=inp.value.replace(/[^1-9]/g,'');
+      highlight();
+    });
+    gridEl.appendChild(inp);cells[r].push(inp);
+  }}
+}
+function readBoard(){
+  return cells.map(row=>row.map(i=>i.value?+i.value:0));
+}
+function highlight(){
+  const b=readBoard();
+  cells.forEach(row=>row.forEach(i=>i.classList.remove('conflict')));
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const n=b[r][c];if(!n)continue;b[r][c]=0;
+    if(!valid(b,r,c,n))cells[r][c].classList.add('conflict');
+    b[r][c]=n;
+  }
+}
+function newGame(){
+  msgEl.textContent='Generating...';
+  setTimeout(()=>{
+    generate(+document.getElementById('diff').value);
+    render();msgEl.textContent='';
+  },20);
+}
+document.getElementById('new').addEventListener('click',newGame);
+document.getElementById('check').addEventListener('click',()=>{
+  highlight();
+  const b=readBoard();
+  let full=true,bad=false;
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    if(b[r][c]===0)full=false;
+    if(b[r][c]!==0&&b[r][c]!==solution[r][c])bad=true;
+  }
+  if(bad){msgEl.textContent='✗ Some entries are wrong';msgEl.style.color='#f87171';}
+  else if(!full){msgEl.textContent='So far so good — keep going';msgEl.style.color='#fbbf24';}
+  else{msgEl.textContent='🎉 Solved!';msgEl.style.color='#34d399';}
+});
+document.getElementById('solve').addEventListener('click',()=>{
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    cells[r][c].value=solution[r][c];
+    cells[r][c].classList.remove('conflict');
+  }
+  msgEl.textContent='Solution shown';msgEl.style.color='#38bdf8';
+});
+newGame();
+</script>
+</body>
+</html>

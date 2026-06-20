@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wheel of Names</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 10px;}
+  .wrap{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .wheelBox{position:relative;width:min(86vw,380px);}
+  .wheelBox::before{content:"";position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+    border-left:14px solid transparent;border-right:14px solid transparent;border-top:24px solid var(--accent);
+    z-index:3;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
+  canvas{width:100%;display:block;cursor:pointer;border-radius:50%;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:18px;width:min(86vw,300px);}
+  textarea{width:100%;height:160px;resize:vertical;border-radius:10px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:10px;font-size:14px;outline:none;font-family:inherit;}
+  textarea:focus{border-color:var(--accent);}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;
+    font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  label.cb{display:flex;align-items:center;gap:6px;font-size:13px;color:#94a3b8;margin-top:10px;}
+  .winner{text-align:center;margin-top:14px;min-height:30px;font-size:22px;font-weight:800;color:var(--accent);}
+  .count{font-size:12px;color:#64748b;margin-top:6px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Wheel of Names</h1>
+<div class="wrap">
+  <div>
+    <div class="wheelBox"><canvas id="wheel" width="500" height="500"></canvas></div>
+    <div class="winner" id="winner"></div>
+  </div>
+  <div class="panel">
+    <textarea id="names" placeholder="One name per line">Alex
+Sam
+Jordan
+Taylor
+Morgan
+Casey
+Riley
+Jamie</textarea>
+    <div class="count" id="count"></div>
+    <label class="cb"><input type="checkbox" id="removeWin"> Remove winner after spin</label>
+    <div class="row">
+      <button id="spin">Spin</button>
+      <button id="update" class="ghost">Update wheel</button>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('wheel'),ctx=cv.getContext('2d');
+const R=cv.width/2;
+const PALETTE=['#38bdf8','#4ade80','#fbbf24','#f87171','#a78bfa','#fb923c','#22d3ee','#f472b6','#818cf8','#34d399'];
+let names=[],angle=0,spinning=false;
+
+function readNames(){
+  return $('names').value.split('\n').map(s=>s.trim()).filter(Boolean);
+}
+function sync(){
+  names=readNames();
+  $('count').textContent=names.length+' name'+(names.length===1?'':'s');
+  $('spin').disabled=names.length<1;
+  draw();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const n=names.length;
+  if(n===0){
+    ctx.fillStyle='#1f2937';ctx.beginPath();ctx.arc(R,R,R-2,0,7);ctx.fill();
+    ctx.fillStyle='#64748b';ctx.font='20px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Add names',R,R);return;
+  }
+  const seg=2*Math.PI/n;
+  for(let i=0;i<n;i++){
+    const a0=angle+i*seg,a1=a0+seg;
+    ctx.beginPath();ctx.moveTo(R,R);ctx.arc(R,R,R-2,a0,a1);ctx.closePath();
+    ctx.fillStyle=PALETTE[i%PALETTE.length];ctx.fill();
+    ctx.save();ctx.translate(R,R);ctx.rotate(a0+seg/2);
+    ctx.fillStyle='#0b1120';ctx.font='bold '+Math.max(11,Math.min(20,260/n))+'px system-ui';
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    let label=names[i];if(label.length>14)label=label.slice(0,13)+'…';
+    ctx.fillText(label,R-18,0);
+    ctx.restore();
+  }
+  ctx.beginPath();ctx.arc(R,R,26,0,7);ctx.fillStyle='#0b1120';ctx.fill();
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=3;ctx.stroke();
+}
+function spin(){
+  if(spinning||names.length<1)return;
+  sync();if(names.length<1)return;
+  spinning=true;$('spin').disabled=true;$('winner').textContent='';
+  const n=names.length,seg=2*Math.PI/n;
+  const target=Math.random()*2*Math.PI;
+  const total=2*Math.PI*(5+Math.random()*3)+target;
+  const start=angle,dur=4200,t0=performance.now();
+  function frame(t){
+    const p=Math.min(1,(t-t0)/dur);
+    const ease=1-Math.pow(1-p,3);
+    angle=start+total*ease;
+    draw();
+    if(p<1){requestAnimationFrame(frame);}
+    else{
+      spinning=false;$('spin').disabled=false;
+      // pointer is at top (-PI/2). Find segment under it.
+      const pointer=(-Math.PI/2 - angle)%(2*Math.PI);
+      let norm=((pointer%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+      const idx=Math.floor(norm/seg)%n;
+      const w=names[idx];
+      $('winner').textContent='🎉 '+w;
+      if($('removeWin').checked){
+        const arr=readNames();
+        const pos=arr.indexOf(w);
+        if(pos>-1)arr.splice(pos,1);
+        $('names').value=arr.join('\n');
+        sync();
+      }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+$('spin').onclick=spin;
+$('update').onclick=sync;
+cv.onclick=spin;
+$('names').addEventListener('input',()=>{ if(!spinning) sync(); });
+sync();
+</script>
+</body>
+</html>

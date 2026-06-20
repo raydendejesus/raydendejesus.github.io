@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catch Basket</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;z-index:5;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:22px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 12px;}
+  canvas{background:#0a0f1c;border:1px solid #1f2937;border-radius:14px;max-width:95vw;touch-action:none;cursor:none;}
+  .hud{margin-top:10px;color:#94a3b8;font-size:14px;}
+  .hud b{color:#e2e8f0;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Catch Basket</h1>
+<p class="sub">Move with mouse or ← → · catch fruit, dodge bombs · Enter to (re)start</p>
+<canvas id="c" width="480" height="540"></canvas>
+<div class="hud">Score <b id="score">0</b> · Lives <b id="lives">3</b> · Time <b id="time">60</b>s · <span id="msg">Press Enter to start</span></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height;
+const GOOD=['🍎','🍊','🍌','🍓','🍇','🍒','⭐'];
+const BAD=['💣','💀'];
+let basket,items,score,lives,timeLeft,running=false,gameover=false,spawnT,tickT;
+let flashColor='#4ade80',flashT=0;
+const keys={};
+
+function start(){
+  basket={x:W/2,w:80,h:30,y:H-44,speed:7};
+  items=[];score=0;lives=3;timeLeft=60;gameover=false;running=true;spawnT=0;tickT=0;flashT=0;
+  document.getElementById('msg').textContent='Catch!';
+  document.getElementById('time').textContent=60;
+  document.getElementById('score').textContent=0;
+  document.getElementById('lives').textContent=3;
+  update();
+}
+addEventListener('keydown',e=>{
+  if(["ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();
+  keys[e.code]=true;
+  if(e.code==='Enter'&&(!running||gameover))start();
+});
+addEventListener('keyup',e=>keys[e.code]=false);
+cv.addEventListener('mousemove',e=>{
+  if(!basket||gameover)return;
+  const r=cv.getBoundingClientRect();
+  basket.x=Math.max(basket.w/2,Math.min(W-basket.w/2,(e.clientX-r.left)*(W/r.width)));
+});
+function spawn(){
+  const bad=Math.random()<0.28;
+  const arr=bad?BAD:GOOD;
+  const emoji=arr[Math.floor(Math.random()*arr.length)];
+  const star=emoji==='⭐';
+  items.push({x:30+Math.random()*(W-60),y:-20,vy:2.2+Math.random()*2+(60-timeLeft)/30,emoji,bad,star});
+}
+function end(msg){gameover=true;document.getElementById('msg').textContent=msg+' — Enter to retry';}
+function update(){
+  if(!running)return;
+  requestAnimationFrame(update);
+  ctx.clearRect(0,0,W,H);
+  if(!gameover){
+    if(keys.ArrowLeft)basket.x-=basket.speed;
+    if(keys.ArrowRight)basket.x+=basket.speed;
+    basket.x=Math.max(basket.w/2,Math.min(W-basket.w/2,basket.x));
+    spawnT--;if(spawnT<=0){spawn();spawnT=Math.max(22,55-(60-timeLeft));}
+    tickT++;if(tickT>=60){tickT=0;timeLeft--;document.getElementById('time').textContent=timeLeft;
+      if(timeLeft<=0)end('Time! Final score '+score);}
+    for(const it of items)it.y+=it.vy;
+    for(let i=items.length-1;i>=0;i--){
+      const it=items[i];
+      if(it.y>basket.y-22&&it.y<basket.y+20&&Math.abs(it.x-basket.x)<basket.w/2+8){
+        items.splice(i,1);
+        if(it.bad){lives--;flashColor='#f87171';flashT=6;if(lives<=0)end('Boom! Final score '+score);}
+        else{score+=it.star?5:1;flashColor='#4ade80';flashT=6;}
+        document.getElementById('score').textContent=score;
+        document.getElementById('lives').textContent=Math.max(0,lives);
+        continue;
+      }
+      if(it.y>H+20)items.splice(i,1);
+    }
+  }
+  ctx.font='30px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const it of items)ctx.fillText(it.emoji,it.x,it.y);
+  if(flashT>0)flashT--;
+  ctx.fillStyle=flashT>0?flashColor:'#38bdf8';
+  roundRect(basket.x-basket.w/2,basket.y-basket.h/2,basket.w,basket.h,8);ctx.fill();
+  ctx.fillStyle='#0a0f1c';
+  for(let i=1;i<5;i++)ctx.fillRect(basket.x-basket.w/2+i*basket.w/5,basket.y-basket.h/2,2,basket.h);
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+</script>
+</body>
+</html>

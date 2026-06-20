@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rock Paper Scissors</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:24px;display:flex;flex-direction:column;align-items:center;width:360px;max-width:90vw;}
+  .arena{display:flex;align-items:center;justify-content:space-around;width:100%;margin:10px 0 18px;height:120px;}
+  .hand{font-size:72px;transition:transform .1s;}
+  .hand.you{transform:scaleX(-1);}
+  .shake{animation:shake .5s;}
+  @keyframes shake{0%,100%{transform:translateY(0)}25%{transform:translateY(-18px)}50%{transform:translateY(0)}75%{transform:translateY(-12px)}}
+  .hand.you.shake{animation:shakeY .5s;}
+  @keyframes shakeY{0%,100%{transform:scaleX(-1) translateY(0)}25%{transform:scaleX(-1) translateY(-18px)}50%{transform:scaleX(-1) translateY(0)}75%{transform:scaleX(-1) translateY(-12px)}}
+  .vs{color:#94a3b8;font-weight:700;}
+  #result{font-size:22px;font-weight:700;min-height:28px;margin-bottom:14px;}
+  .choices{display:flex;gap:14px;}
+  .choices button{font-size:34px;width:72px;height:72px;background:#0b1120;border:1px solid #1f2937;border-radius:14px;cursor:pointer;transition:transform .1s,border-color .1s;}
+  .choices button:hover{border-color:#38bdf8;transform:translateY(-3px);}
+  .score{display:flex;gap:24px;margin-top:18px;font-size:16px;}
+  .score b{font-size:24px;color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Rock · Paper · Scissors</h1>
+<div class="panel">
+  <div class="arena">
+    <div class="hand you" id="youHand">✊</div>
+    <div class="vs">VS</div>
+    <div class="hand" id="cpuHand">✊</div>
+  </div>
+  <div id="result">Make your move</div>
+  <div class="choices">
+    <button data-c="0">✊</button>
+    <button data-c="1">✋</button>
+    <button data-c="2">✌️</button>
+  </div>
+  <div class="score">
+    <div>You<br><b id="ws">0</b></div>
+    <div>Ties<br><b id="ts">0</b></div>
+    <div>CPU<br><b id="ls">0</b></div>
+  </div>
+</div>
+<script>
+const E=['✊','✋','✌️'],NAMES=['Rock','Paper','Scissors'];
+let w=0,t=0,l=0,busy=false;
+const youHand=document.getElementById('youHand'),cpuHand=document.getElementById('cpuHand'),res=document.getElementById('result');
+function play(you){
+  if(busy)return;busy=true;
+  const cpu=Math.floor(Math.random()*3);
+  res.textContent='...';res.style.color='#e2e8f0';
+  youHand.textContent='✊';cpuHand.textContent='✊';
+  youHand.classList.add('shake');cpuHand.classList.add('shake');
+  setTimeout(()=>{
+    youHand.classList.remove('shake');cpuHand.classList.remove('shake');
+    youHand.textContent=E[you];cpuHand.textContent=E[cpu];
+    let r;
+    if(you===cpu){r='Tie';t++;res.style.color='#fbbf24';}
+    else if((you===0&&cpu===2)||(you===1&&cpu===0)||(you===2&&cpu===1)){r='You win!';w++;res.style.color='#34d399';}
+    else{r='You lose';l++;res.style.color='#f87171';}
+    res.textContent=`${NAMES[you]} vs ${NAMES[cpu]} — ${r}`;
+    document.getElementById('ws').textContent=w;
+    document.getElementById('ts').textContent=t;
+    document.getElementById('ls').textContent=l;
+    busy=false;
+  },550);
+}
+document.querySelectorAll('.choices button').forEach(b=>b.addEventListener('click',()=>play(+b.dataset.c)));
+</script>
+</body>
+</html>

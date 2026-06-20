@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Field</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;z-index:5;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  canvas{display:block;border-radius:12px;background:#0b1120;}
+  .controls{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:12px;}
+  .ctl{display:flex;flex-direction:column;font-size:13px;color:#94a3b8;}
+  input[type=range]{accent-color:#38bdf8;width:130px;}
+  button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer;align-self:flex-end;}
+  button:hover{border-color:#38bdf8;}
+  .hint{color:#64748b;font-size:12px;margin-top:8px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Flow Field</h1>
+<div class="panel"><canvas id="c" width="820" height="500"></canvas></div>
+<div class="controls">
+  <div class="ctl">Particles: <span id="cv">1500</span><input id="count" type="range" min="200" max="4000" value="1500" step="100"></div>
+  <div class="ctl">Speed: <span id="sv">1.0</span><input id="speed" type="range" min="0.2" max="3" value="1" step="0.1"></div>
+  <div class="ctl">Swirl: <span id="zv">1.0</span><input id="scale" type="range" min="0.3" max="3" value="1" step="0.1"></div>
+  <button id="clear">Clear</button>
+</div>
+<p class="hint">Move the mouse over the canvas to push the flow.</p>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height;
+// --- simple value-noise (gradient-ish) field, no libs ---
+const perm=new Uint8Array(512);
+(function(){const p=[...Array(256).keys()];for(let i=255;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];}for(let i=0;i<512;i++)perm[i]=p[i&255];})();
+function fade(t){return t*t*t*(t*(t*6-15)+10);}
+function lerp(a,b,t){return a+(b-a)*t;}
+function grad(h,x,y){const u=h&1?x:-x,v=h&2?y:-y;return u+v;}
+function noise(x,y){
+  const X=Math.floor(x)&255,Y=Math.floor(y)&255;
+  x-=Math.floor(x);y-=Math.floor(y);
+  const u=fade(x),v=fade(y);
+  const aa=perm[perm[X]+Y],ab=perm[perm[X]+Y+1],ba=perm[perm[X+1]+Y],bb=perm[perm[X+1]+Y+1];
+  return lerp(lerp(grad(aa,x,y),grad(ba,x-1,y),u),lerp(grad(ab,x,y-1),grad(bb,x-1,y-1),u),v);
+}
+let particles=[],t=0,mouse={x:-999,y:-999,active:false};
+function makeParticles(n){
+  particles=[];
+  for(let i=0;i<n;i++)particles.push({x:Math.random()*W,y:Math.random()*H,h:Math.random()*360});
+}
+const els={count:document.getElementById('count'),speed:document.getElementById('speed'),scale:document.getElementById('scale')};
+function sync(){
+  document.getElementById('cv').textContent=els.count.value;
+  document.getElementById('sv').textContent=(+els.speed.value).toFixed(1);
+  document.getElementById('zv').textContent=(+els.scale.value).toFixed(1);
+}
+els.count.addEventListener('input',()=>{sync();makeParticles(+els.count.value);});
+els.speed.addEventListener('input',sync);
+els.scale.addEventListener('input',sync);
+document.getElementById('clear').addEventListener('click',()=>{ctx.fillStyle='#0b1120';ctx.fillRect(0,0,W,H);});
+cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)*(W/r.width);mouse.y=(e.clientY-r.top)*(H/r.height);mouse.active=true;});
+cv.addEventListener('mouseleave',()=>mouse.active=false);
+function step(){
+  const speed=+els.speed.value,scale=+els.scale.value*0.0025;
+  ctx.fillStyle='rgba(11,17,32,0.06)';ctx.fillRect(0,0,W,H);
+  for(const p of particles){
+    const a=noise(p.x*scale,p.y*scale+t*0.15)*Math.PI*3;
+    let vx=Math.cos(a)*speed,vy=Math.sin(a)*speed;
+    if(mouse.active){
+      const dx=p.x-mouse.x,dy=p.y-mouse.y,d2=dx*dx+dy*dy;
+      if(d2<14000){const f=(1-Math.sqrt(d2)/120)*4;vx+=dx/(Math.sqrt(d2)+1)*f;vy+=dy/(Math.sqrt(d2)+1)*f;}
+    }
+    const px=p.x,py=p.y;
+    p.x+=vx;p.y+=vy;
+    ctx.strokeStyle=`hsla(${(p.h+t*8)%360},85%,62%,0.55)`;
+    ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(p.x,p.y);ctx.stroke();
+    if(p.x<0||p.x>W||p.y<0||p.y>H){p.x=Math.random()*W;p.y=Math.random()*H;}
+  }
+  t+=0.05;
+  requestAnimationFrame(step);
+}
+ctx.fillStyle='#0b1120';ctx.fillRect(0,0,W,H);
+sync();makeParticles(1500);step();
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangman</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:22px;display:flex;flex-direction:column;align-items:center;}
+  svg{background:#0b1120;border-radius:12px;}
+  .word{font-size:34px;letter-spacing:10px;font-weight:700;margin:18px 0 8px;font-family:monospace;min-height:42px;}
+  #msg{min-height:26px;font-weight:600;font-size:18px;margin-bottom:8px;}
+  .keys{display:grid;grid-template-columns:repeat(9,1fr);gap:7px;max-width:440px;}
+  .keys button{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;width:42px;height:42px;font:inherit;font-weight:600;cursor:pointer;text-transform:uppercase;}
+  .keys button:hover:not(:disabled){border-color:#38bdf8;}
+  .keys button.good{background:#14532d;border-color:#22c55e;}
+  .keys button.bad{background:#5b1717;border-color:#ef4444;opacity:.6;}
+  .keys button:disabled{cursor:default;}
+  button.new{margin-top:16px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:9px 16px;font:inherit;cursor:pointer;}
+  button.new:hover{border-color:#38bdf8;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Hangman</h1>
+<div class="panel">
+  <svg width="200" height="220" viewBox="0 0 200 220">
+    <line x1="20" y1="210" x2="120" y2="210" stroke="#475569" stroke-width="6"/>
+    <line x1="50" y1="210" x2="50" y2="20" stroke="#475569" stroke-width="6"/>
+    <line x1="50" y1="20" x2="130" y2="20" stroke="#475569" stroke-width="6"/>
+    <line x1="130" y1="20" x2="130" y2="45" stroke="#475569" stroke-width="4"/>
+    <g stroke="#e2e8f0" stroke-width="4" fill="none" stroke-linecap="round">
+      <circle id="p0" cx="130" cy="62" r="17" style="display:none"/>
+      <line id="p1" x1="130" y1="79" x2="130" y2="135" style="display:none"/>
+      <line id="p2" x1="130" y1="95" x2="105" y2="118" style="display:none"/>
+      <line id="p3" x1="130" y1="95" x2="155" y2="118" style="display:none"/>
+      <line id="p4" x1="130" y1="135" x2="108" y2="170" style="display:none"/>
+      <line id="p5" x1="130" y1="135" x2="152" y2="170" style="display:none"/>
+    </g>
+  </svg>
+  <div class="word" id="word"></div>
+  <div id="msg">Guess the word — 6 wrong allowed</div>
+  <div class="keys" id="keys"></div>
+  <button class="new" id="new">New Word</button>
+</div>
+<script>
+const WORDS=['planet','guitar','wizard','jungle','rocket','puzzle','dragon','coffee','silver','breeze','galaxy','cactus','velvet','marble','jigsaw','quartz','python','nebula','cipher','glacier','mammoth','orchid','voltage','whisper','zephyr','blossom','crimson','dynamo','frost','harvest'];
+const MAX=6;
+let word,guessed,wrong;
+const wordEl=document.getElementById('word'),msgEl=document.getElementById('msg'),keysEl=document.getElementById('keys');
+function init(){
+  word=WORDS[Math.floor(Math.random()*WORDS.length)];
+  guessed=new Set();wrong=0;
+  msgEl.textContent='Guess the word — 6 wrong allowed';msgEl.style.color='#e2e8f0';
+  for(let i=0;i<6;i++)document.getElementById('p'+i).style.display='none';
+  buildKeys();render();
+}
+function buildKeys(){
+  keysEl.innerHTML='';
+  for(let i=97;i<=122;i++){
+    const ch=String.fromCharCode(i);
+    const b=document.createElement('button');b.textContent=ch;b.dataset.k=ch;
+    b.addEventListener('click',()=>guess(ch));
+    keysEl.appendChild(b);
+  }
+}
+function render(){
+  wordEl.textContent=word.split('').map(c=>guessed.has(c)?c:'_').join(' ');
+}
+function guess(ch){
+  if(guessed.has(ch)||wrong>=MAX||won())return;
+  guessed.add(ch);
+  const btn=keysEl.querySelector(`[data-k="${ch}"]`);btn.disabled=true;
+  if(word.includes(ch)){btn.classList.add('good');}
+  else{btn.classList.add('bad');document.getElementById('p'+wrong).style.display='';wrong++;}
+  render();check();
+}
+function won(){return word.split('').every(c=>guessed.has(c));}
+function check(){
+  if(won()){msgEl.textContent='🎉 You got it!';msgEl.style.color='#34d399';disableAll();}
+  else if(wrong>=MAX){
+    msgEl.textContent='💀 Out of guesses — it was "'+word+'"';msgEl.style.color='#f87171';
+    wordEl.textContent=word.split('').join(' ');disableAll();
+  }
+}
+function disableAll(){keysEl.querySelectorAll('button').forEach(b=>b.disabled=true);}
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(/^[a-z]$/.test(k))guess(k);});
+document.getElementById('new').addEventListener('click',init);
+init();
+</script>
+</body>
+</html>

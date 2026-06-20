@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Time Test</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:32px 0 8px;}
+  p.sub{color:#94a3b8;margin:0 0 20px;}
+  #pad{width:min(90vw,560px);height:340px;border-radius:16px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;cursor:pointer;user-select:none;text-align:center;
+    border:1px solid #1f2937;transition:background .05s;font-size:22px;font-weight:600;padding:20px;}
+  .wait{background:#7f1d1d;}
+  .ready{background:#166534;}
+  .idle{background:#111827;}
+  .early{background:#92400e;}
+  .stats{display:flex;gap:14px;margin-top:20px;flex-wrap:wrap;justify-content:center;}
+  .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px 20px;min-width:110px;text-align:center;}
+  .card .label{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;}
+  .card .val{font-size:24px;font-weight:700;margin-top:4px;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 18px;
+    font-weight:600;font-size:14px;cursor:pointer;margin-top:18px;}
+  button:hover{filter:brightness(1.1);}
+  .hint{font-size:14px;opacity:.85;margin-top:8px;font-weight:400;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Reaction Time Test</h1>
+<p class="sub">Wait for green, then click as fast as you can.</p>
+<div id="pad" class="idle">Click to start
+<div class="hint">When the screen turns green — click!</div></div>
+<div class="stats">
+  <div class="card"><div class="label">Last</div><div class="val" id="last">—</div></div>
+  <div class="card"><div class="label">Best</div><div class="val" id="best">—</div></div>
+  <div class="card"><div class="label">Average</div><div class="val" id="avg">—</div></div>
+  <div class="card"><div class="label">Rounds</div><div class="val" id="rounds">0</div></div>
+</div>
+<button id="reset">Reset stats</button>
+<script>
+  const pad=document.getElementById('pad');
+  const lastEl=document.getElementById('last'),bestEl=document.getElementById('best'),
+        avgEl=document.getElementById('avg'),roundsEl=document.getElementById('rounds');
+  let state='idle';// idle, waiting, ready
+  let timer=null,greenTime=0;
+  let times=[],best=null;
+
+  function setState(s,txt,sub){
+    state=s;
+    pad.className=({idle:'idle',waiting:'wait',ready:'ready',early:'early'})[s];
+    pad.innerHTML=txt+(sub?'<div class="hint">'+sub+'</div>':'');
+  }
+  function startRound(){
+    setState('waiting','Wait for green…','Don’t click yet');
+    const delay=900+Math.random()*2600;
+    timer=setTimeout(()=>{
+      greenTime=performance.now();
+      setState('ready','CLICK!');
+    },delay);
+  }
+  function record(ms){
+    times.push(ms);
+    if(best===null||ms<best)best=ms;
+    lastEl.textContent=Math.round(ms)+' ms';
+    bestEl.textContent=Math.round(best)+' ms';
+    const avg=times.reduce((a,b)=>a+b,0)/times.length;
+    avgEl.textContent=Math.round(avg)+' ms';
+    roundsEl.textContent=times.length;
+  }
+  pad.addEventListener('click',()=>{
+    if(state==='idle'||state==='early'){startRound();return;}
+    if(state==='waiting'){
+      clearTimeout(timer);
+      setState('early','Too soon!','Click to try again');
+      return;
+    }
+    if(state==='ready'){
+      const ms=performance.now()-greenTime;
+      record(ms);
+      setState('idle','Nice! '+Math.round(ms)+' ms','Click to go again');
+    }
+  });
+  document.getElementById('reset').addEventListener('click',()=>{
+    times=[];best=null;
+    lastEl.textContent=bestEl.textContent=avgEl.textContent='—';
+    roundsEl.textContent='0';
+    setState('idle','Click to start','When the screen turns green — click!');
+  });
+</script>
+</body>
+</html>

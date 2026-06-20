@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boids Flocking</title>
+<style>
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px;}
+  a.back{position:fixed;top:16px;left:16px;color:#38bdf8;text-decoration:none;z-index:5;}
+  a.back:hover{text-decoration:underline;}
+  h1{margin:8px 0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:18px;padding:14px;}
+  canvas{display:block;border-radius:12px;background:#0b1120;}
+  .controls{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:12px;align-items:flex-end;}
+  .ctl{display:flex;flex-direction:column;font-size:13px;color:#94a3b8;}
+  input[type=range]{accent-color:#38bdf8;width:120px;}
+  label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#94a3b8;}
+  .hint{color:#64748b;font-size:12px;margin-top:8px;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Boids Flocking</h1>
+<div class="panel"><canvas id="c" width="820" height="500"></canvas></div>
+<div class="controls">
+  <div class="ctl">Boids: <span id="nv">200</span><input id="count" type="range" min="20" max="600" value="200" step="10"></div>
+  <div class="ctl">Separation: <span id="sepv">1.5</span><input id="sep" type="range" min="0" max="3" value="1.5" step="0.1"></div>
+  <div class="ctl">Alignment: <span id="aliv">1.0</span><input id="ali" type="range" min="0" max="3" value="1" step="0.1"></div>
+  <div class="ctl">Cohesion: <span id="cohv">1.0</span><input id="coh" type="range" min="0" max="3" value="1" step="0.1"></div>
+  <label class="chk"><input id="follow" type="checkbox" checked> follow mouse</label>
+</div>
+<p class="hint">Move the mouse over the canvas — the flock chases the cursor.</p>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=cv.width,H=cv.height;
+const PERCEPT=46,SEP_R=24,MAXSPD=3.2,MAXF=0.06;
+let boids=[],mouse={x:W/2,y:H/2,active:false};
+function rnd(a,b){return a+Math.random()*(b-a);}
+function makeBoids(n){
+  const cur=boids.length;
+  if(n<cur)boids.length=n;
+  else for(let i=cur;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    boids.push({x:Math.random()*W,y:Math.random()*H,vx:Math.cos(a)*2,vy:Math.sin(a)*2,h:rnd(180,260)});
+  }
+}
+const g=id=>+document.getElementById(id).value;
+function limit(vx,vy,max){const m=Math.hypot(vx,vy);if(m>max){return[vx/m*max,vy/m*max];}return[vx,vy];}
+function step(){
+  ctx.fillStyle='rgba(11,17,32,0.25)';ctx.fillRect(0,0,W,H);
+  const sepW=g('sep'),aliW=g('ali'),cohW=g('coh');
+  for(const b of boids){
+    let sx=0,sy=0,ax=0,ay=0,cxs=0,cys=0,n=0,sn=0;
+    for(const o of boids){
+      if(o===b)continue;
+      const dx=b.x-o.x,dy=b.y-o.y,d2=dx*dx+dy*dy;
+      if(d2<PERCEPT*PERCEPT){
+        ax+=o.vx;ay+=o.vy;cxs+=o.x;cys+=o.y;n++;
+        if(d2<SEP_R*SEP_R&&d2>0){const d=Math.sqrt(d2);sx+=dx/d;sy+=dy/d;sn++;}
+      }
+    }
+    let fx=0,fy=0;
+    if(n>0){
+      // alignment
+      let[avx,avy]=limit(ax/n,ay/n,MAXSPD);avx-=b.vx;avy-=b.vy;[avx,avy]=limit(avx,avy,MAXF);
+      // cohesion
+      let cvx=cxs/n-b.x,cvy=cys/n-b.y;[cvx,cvy]=limit(cvx,cvy,MAXSPD);cvx-=b.vx;cvy-=b.vy;[cvx,cvy]=limit(cvx,cvy,MAXF);
+      fx+=avx*aliW+cvx*cohW;fy+=avy*aliW+cvy*cohW;
+    }
+    if(sn>0){let[svx,svy]=limit(sx/sn,sy/sn,MAXSPD);svx-=b.vx;svy-=b.vy;[svx,svy]=limit(svx,svy,MAXF);fx+=svx*sepW;fy+=svy*sepW;}
+    if(mouse.active&&document.getElementById('follow').checked){
+      let mvx=mouse.x-b.x,mvy=mouse.y-b.y;[mvx,mvy]=limit(mvx,mvy,MAXSPD);mvx-=b.vx;mvy-=b.vy;[mvx,mvy]=limit(mvx,mvy,MAXF);
+      fx+=mvx*1.4;fy+=mvy*1.4;
+    }
+    b.vx+=fx;b.vy+=fy;
+    [b.vx,b.vy]=limit(b.vx,b.vy,MAXSPD);
+    b.x+=b.vx;b.y+=b.vy;
+    if(b.x<0)b.x+=W;if(b.x>W)b.x-=W;if(b.y<0)b.y+=H;if(b.y>H)b.y-=H;
+    // draw triangle
+    const ang=Math.atan2(b.vy,b.vx);
+    ctx.save();ctx.translate(b.x,b.y);ctx.rotate(ang);
+    ctx.fillStyle=`hsl(${b.h},85%,62%)`;
+    ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-5,3.2);ctx.lineTo(-5,-3.2);ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
+  requestAnimationFrame(step);
+}
+['count','sep','ali','coh'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const map={count:'nv',sep:'sepv',ali:'aliv',coh:'cohv'};
+  document.getElementById(map[id]).textContent=id==='count'?g(id):g(id).toFixed(1);
+  if(id==='count')makeBoids(g('count'));
+}));
+cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();mouse.x=(e.clientX-r.left)*(W/r.width);mouse.y=(e.clientY-r.top)*(H/r.height);mouse.active=true;});
+cv.addEventListener('mouseleave',()=>mouse.active=false);
+makeBoids(200);step();
+</script>
+</body>
+</html>

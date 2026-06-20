@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Scramble</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:32px 0 6px;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:24px;
+    width:min(92vw,480px);text-align:center;margin-top:14px;}
+  .scrambled{font-size:38px;font-weight:800;letter-spacing:8px;margin:10px 0;color:var(--accent);
+    text-transform:uppercase;min-height:48px;}
+  input{width:100%;padding:12px;border-radius:10px;border:1px solid #1f2937;background:#0b1120;
+    color:#e2e8f0;font-size:18px;text-align:center;outline:none;}
+  input:focus{border-color:var(--accent);}
+  .row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:11px 18px;
+    font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .stats{display:flex;gap:18px;justify-content:center;margin-top:8px;color:#94a3b8;font-size:14px;}
+  .stats b{color:#e2e8f0;}
+  .feedback{min-height:22px;margin-top:12px;font-weight:600;}
+  .ok{color:#4ade80;}.bad{color:#f87171;}
+  .hint{margin-top:10px;color:#fbbf24;font-size:14px;min-height:20px;}
+  .timebar{height:8px;background:#0b1120;border-radius:6px;overflow:hidden;margin-top:14px;}
+  .timebar i{display:block;height:100%;background:var(--accent);width:100%;transition:width .2s linear;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>Word Scramble</h1>
+<div class="stats"><span>Score <b id="score">0</b></span><span>Round <b id="round">0</b></span><span>Time <b id="time">60</b>s</span></div>
+<div class="panel">
+  <div class="scrambled" id="scrambled">READY?</div>
+  <input id="guess" placeholder="your guess…" autocomplete="off" disabled>
+  <div class="timebar"><i id="bar"></i></div>
+  <div class="feedback" id="feedback"></div>
+  <div class="hint" id="hint"></div>
+  <div class="row">
+    <button id="start">Start game</button>
+    <button id="submit" class="ghost">Submit</button>
+    <button id="hintBtn" class="ghost">Hint (-2)</button>
+    <button id="skip" class="ghost">Skip</button>
+  </div>
+</div>
+<script>
+  const WORDS=["planet","guitar","window","forest","rocket","puzzle","silver","dragon","castle","jungle",
+    "orange","pillow","wizard","camera","button","garden","monkey","pencil","ticket","yellow","bridge",
+    "circle","dolphin","feather","library","machine","octopus","picture","quarter","rainbow","sandwich",
+    "thunder","volcano","whisper","diamond","balloon","blanket","compass","crystal","lantern"];
+  let pool=[],word="",score=0,round=0,timeLeft=60,timer=null,hintsUsed=0;
+  const $=id=>document.getElementById(id);
+  function scramble(w){
+    let a=w.split("");
+    let out;
+    do{
+      for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+      out=a.join("");
+    }while(out===w&&w.length>1);
+    return out;
+  }
+  function nextWord(){
+    if(pool.length===0)pool=[...WORDS];
+    const idx=Math.floor(Math.random()*pool.length);
+    word=pool.splice(idx,1)[0];
+    round++;$("round").textContent=round;
+    $("scrambled").textContent=scramble(word);
+    $("guess").value="";$("hint").textContent="";hintsUsed=0;
+    $("guess").focus();
+  }
+  function start(){
+    score=0;round=0;timeLeft=60;
+    $("score").textContent=0;$("time").textContent=60;$("bar").style.width="100%";
+    $("guess").disabled=false;$("feedback").textContent="";$("feedback").className="feedback";
+    clearInterval(timer);
+    timer=setInterval(()=>{
+      timeLeft--;$("time").textContent=timeLeft;$("bar").style.width=(timeLeft/60*100)+"%";
+      if(timeLeft<=0)endGame();
+    },1000);
+    $("start").textContent="Restart";
+    nextWord();
+  }
+  function endGame(){
+    clearInterval(timer);
+    $("guess").disabled=true;
+    $("scrambled").textContent="TIME!";
+    $("feedback").textContent="Game over — final score "+score;
+    $("feedback").className="feedback";
+  }
+  function submit(){
+    if($("guess").disabled)return;
+    const g=$("guess").value.trim().toLowerCase();
+    if(!g)return;
+    if(g===word){
+      const gain=Math.max(1,word.length-hintsUsed*2);
+      score+=gain;$("score").textContent=score;
+      $("feedback").textContent="Correct! +"+gain;$("feedback").className="feedback ok";
+      nextWord();
+    }else{
+      $("feedback").textContent="Nope, try again";$("feedback").className="feedback bad";
+    }
+  }
+  $("start").onclick=start;
+  $("submit").onclick=submit;
+  $("skip").onclick=()=>{if(!$("guess").disabled){$("feedback").textContent="Skipped — was “"+word+"”";$("feedback").className="feedback bad";nextWord();}};
+  $("hintBtn").onclick=()=>{
+    if($("guess").disabled)return;
+    hintsUsed++;
+    const reveal=Math.min(hintsUsed,word.length);
+    $("hint").textContent="Starts with: "+word.slice(0,reveal)+"…";
+  };
+  $("guess").addEventListener("keydown",e=>{if(e.key==="Enter")submit();});
+</script>
+</body>
+</html>
