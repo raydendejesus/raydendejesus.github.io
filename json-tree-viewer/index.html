@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Tree Viewer</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:960px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  textarea { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937;
+    border-radius:10px; padding:10px; font-family:ui-monospace, monospace; font-size:.9rem; min-height:120px; resize:vertical; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  button.sec { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .err { color:#fca5a5; font-family:ui-monospace,monospace; margin-top:8px; }
+  .tree { font-family:ui-monospace, monospace; font-size:.9rem; line-height:1.6; }
+  .node { margin-left:18px; }
+  .tog { cursor:pointer; user-select:none; color:#94a3b8; display:inline-block; width:14px; }
+  .key { color:var(--accent); }
+  .t-string { color:#86efac; }
+  .t-number { color:#fcd34d; }
+  .t-boolean { color:#f0abfc; }
+  .t-null { color:#94a3b8; }
+  .type { color:#475569; font-size:.78rem; margin-left:6px; }
+  .collapsed > .children { display:none; }
+  .preview { color:#64748b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>JSON Tree Viewer</h1>
+  <div class="panel">
+    <label>Paste JSON</label>
+    <textarea id="input" placeholder='{"name":"Rayden","tags":["a","b"],"nested":{"x":1,"ok":true,"none":null}}'></textarea>
+    <div class="row">
+      <button onclick="render()">View</button>
+      <button class="sec" onclick="expandAll()">Expand all</button>
+      <button class="sec" onclick="collapseAll()">Collapse all</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+  <div class="panel"><div class="tree" id="tree"></div></div>
+</div>
+<script>
+  function render() {
+    var err = document.getElementById('err'); err.textContent = '';
+    var t = document.getElementById('tree'); t.innerHTML = '';
+    var data;
+    try { data = JSON.parse(document.getElementById('input').value); }
+    catch(e){ err.textContent = 'Invalid JSON: ' + e.message; return; }
+    t.appendChild(buildNode('root', data, true));
+  }
+  function typeOf(v){
+    if (v === null) return 'null';
+    if (Array.isArray(v)) return 'array';
+    return typeof v;
+  }
+  function buildNode(key, val, isRoot) {
+    var type = typeOf(val);
+    var wrap = document.createElement('div');
+    wrap.className = isRoot ? '' : 'node';
+    var line = document.createElement('div');
+    if (type === 'object' || type === 'array') {
+      var holder = document.createElement('div');
+      var tog = document.createElement('span'); tog.className = 'tog'; tog.textContent = '▼';
+      tog.onclick = function(){
+        holder.classList.toggle('collapsed');
+        tog.textContent = holder.classList.contains('collapsed') ? '▶' : '▼';
+      };
+      line.appendChild(tog);
+      if (!isRoot) { var ks = document.createElement('span'); ks.className='key'; ks.textContent = key + ': '; line.appendChild(ks); }
+      var keys = type === 'array' ? val.map(function(_,i){return i;}) : Object.keys(val);
+      var open = type === 'array' ? '[' : '{', close = type === 'array' ? ']' : '}';
+      var prev = document.createElement('span'); prev.className='preview';
+      prev.textContent = open + keys.length + (type==='array'?' items':' keys') + close;
+      line.appendChild(prev);
+      holder.appendChild(line);
+      var children = document.createElement('div'); children.className = 'children';
+      keys.forEach(function(k){ children.appendChild(buildNode(k, val[k], false)); });
+      holder.appendChild(children);
+      return holder;
+    } else {
+      var sp = document.createElement('span'); sp.className='tog';
+      line.appendChild(sp);
+      if (!isRoot) { var k2 = document.createElement('span'); k2.className='key'; k2.textContent = key + ': '; line.appendChild(k2); }
+      var v = document.createElement('span'); v.className = 't-' + type;
+      v.textContent = type === 'string' ? JSON.stringify(val) : String(val);
+      line.appendChild(v);
+      var ty = document.createElement('span'); ty.className='type'; ty.textContent = type;
+      line.appendChild(ty);
+      wrap.appendChild(line);
+      return wrap;
+    }
+  }
+  function expandAll(){ document.querySelectorAll('.collapsed').forEach(function(e){ e.classList.remove('collapsed'); var t=e.querySelector('.tog'); if(t)t.textContent='▼'; }); }
+  function collapseAll(){ document.querySelectorAll('#tree .children').forEach(function(c){ var h=c.parentNode; if(h!==document.getElementById('tree')){ h.classList.add('collapsed'); var t=h.querySelector('.tog'); if(t)t.textContent='▶'; } }); }
+  document.getElementById('input').value = '{"name":"Rayden","tags":["a","b"],"nested":{"x":1,"ok":true,"none":null}}';
+  render();
+</script>
+</body>
+</html>

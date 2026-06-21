@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text Repeater</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1 { font-size:1.4rem; margin:.4rem 0 1rem; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px; margin-bottom:16px; }
+  textarea { width:100%; min-height:160px; resize:vertical; background:#0b1120; color:#e2e8f0;
+    border:1px solid #1f2937; border-radius:10px; padding:10px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+  label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; }
+  input { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:6px; font-family:inherit; }
+  input#count { width:90px; }
+  input#sep { width:160px; font-family:ui-monospace,Consolas,monospace; }
+  button { background:var(--accent); color:#06283d; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.08); }
+  button.secondary { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0; }
+  .hint { font-size:12px; color:#94a3b8; }
+</style>
+</head>
+<body>
+  <a href="../">&larr; back</a>
+  <h1>Text Repeater</h1>
+  <div class="panel">
+    <label>Repeat <input type="number" id="count" value="5" min="1"> times</label>
+    <label>Separator <input type="text" id="sep" placeholder="\n for newline"></label>
+    <label><input type="checkbox" id="newline"> Newline between copies</label>
+    <div class="hint">Separator supports <code>\n</code> and <code>\t</code> escapes.</div>
+  </div>
+  <div class="panel">
+    <textarea id="input" placeholder="Text to repeat..."></textarea>
+    <div class="row">
+      <button id="go">Repeat</button>
+      <button class="secondary" id="clear">Clear</button>
+    </div>
+  </div>
+  <div class="panel">
+    <textarea id="output" placeholder="Result..." readonly></textarea>
+    <div class="row"><button class="secondary" id="copy">Copy</button></div>
+  </div>
+<script>
+  const $ = id => document.getElementById(id);
+  function run() {
+    const n = Math.max(1, parseInt($('count').value, 10) || 1);
+    let sep = $('sep').value.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+    if ($('newline').checked) sep += '\n';
+    $('output').value = Array.from({length:n}, () => $('input').value).join(sep);
+  }
+  $('go').onclick = run;
+  $('clear').onclick = () => { $('input').value=''; $('output').value=''; };
+  $('copy').onclick = async () => {
+    await navigator.clipboard.writeText($('output').value);
+    const b=$('copy'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1200);
+  };
+</script>
+</body>
+</html>

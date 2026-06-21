@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Response Mocker</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:1000px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media(max-width:760px){ .wrap{ grid-template-columns:1fr; } }
+  .head { grid-column:1/-1; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; }
+  label { font-size:13px; color:#94a3b8; }
+  .top { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  select,input[type=number],input[type=text] { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:7px 9px; font-size:14px; }
+  .field { display:grid; grid-template-columns:1.2fr 1fr 1.3fr auto; gap:8px; margin-bottom:8px; align-items:center; }
+  .field input { width:100%; }
+  .field .rm { color:#f87171; cursor:pointer; font-size:13px; text-align:center; }
+  .hdr { font-size:12px; color:#64748b; display:grid; grid-template-columns:1.2fr 1fr 1.3fr auto; gap:8px; margin-bottom:6px; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:9px 15px; font-weight:600; cursor:pointer; font-size:14px; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid #1f2937; }
+  button:active { transform:translateY(1px); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:8px; padding:12px; overflow:auto; font-size:13px; font-family:ui-monospace,monospace; max-height:520px; white-space:pre; }
+  .status { font-family:ui-monospace,monospace; font-size:14px; color:#a7f3d0; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <a class="back" href="../">&larr; back</a>
+    <h1>API Response Mocker</h1>
+    <p class="sub">Define fields and a status to build a mock REST JSON response.</p>
+  </div>
+  <div class="panel">
+    <div class="top">
+      <label>Status <select id="status"></select></label>
+      <label>Method <select id="method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></label>
+      <label><input type="checkbox" id="wrapArr"> as array</label>
+      <label>count <input type="number" id="count" value="1" min="1" max="50" style="width:64px"></label>
+    </div>
+    <div class="hdr"><span>field</span><span>type</span><span>value / sample</span><span></span></div>
+    <div id="fields"></div>
+    <div class="row"><button id="addBtn">+ Add field</button></div>
+  </div>
+  <div class="panel">
+    <div class="status" id="statusLine"></div>
+    <pre id="output"></pre>
+    <div class="row"><button id="copyBtn">Copy JSON</button><button class="ghost" id="copyFull">Copy with headers</button></div>
+  </div>
+</div>
+<script>
+const STATUSES={200:'OK',201:'Created',202:'Accepted',204:'No Content',301:'Moved Permanently',400:'Bad Request',401:'Unauthorized',403:'Forbidden',404:'Not Found',409:'Conflict',422:'Unprocessable Entity',429:'Too Many Requests',500:'Internal Server Error',502:'Bad Gateway',503:'Service Unavailable'};
+const TYPES=['string','number','boolean','id','uuid','email','date','null'];
+let fields=[
+  {name:'id',type:'id',val:''},
+  {name:'name',type:'string',val:'Sample Name'},
+  {name:'active',type:'boolean',val:'true'},
+];
+const statusSel=document.getElementById('status');
+Object.keys(STATUSES).forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=`${c} ${STATUSES[c]}`; statusSel.appendChild(o); });
+statusSel.value='200';
+const fieldsDiv=document.getElementById('fields');
+function renderFields(){
+  fieldsDiv.innerHTML='';
+  fields.forEach((f,i)=>{
+    const d=document.createElement('div'); d.className='field';
+    const opts=TYPES.map(t=>`<option ${t===f.type?'selected':''}>${t}</option>`).join('');
+    d.innerHTML=`<input type="text" class="fn" value="${f.name}" placeholder="field">
+      <select class="ft">${opts}</select>
+      <input type="text" class="fv" value="${f.val}" placeholder="value">
+      <span class="rm">remove</span>`;
+    d.querySelector('.fn').addEventListener('input',e=>{ fields[i].name=e.target.value; render(); });
+    d.querySelector('.ft').addEventListener('change',e=>{ fields[i].type=e.target.value; render(); });
+    d.querySelector('.fv').addEventListener('input',e=>{ fields[i].val=e.target.value; render(); });
+    d.querySelector('.rm').addEventListener('click',()=>{ fields.splice(i,1); renderFields(); render(); });
+    fieldsDiv.appendChild(d);
+  });
+}
+let seq=0;
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}); }
+function sampleValue(f,idx){
+  switch(f.type){
+    case 'number': return f.val!==''?(isNaN(+f.val)?0:+f.val):Math.floor(Math.random()*1000);
+    case 'boolean': return f.val? f.val.toLowerCase()==='true' : true;
+    case 'id': return idx+1;
+    case 'uuid': return uuid();
+    case 'email': return f.val||`user${idx+1}@example.com`;
+    case 'date': return f.val||new Date().toISOString();
+    case 'null': return null;
+    default: return f.val!==''?f.val:'string';
+  }
+}
+function buildObj(idx){
+  const o={};
+  fields.forEach(f=>{ if(f.name.trim()) o[f.name.trim()]=sampleValue(f,idx); });
+  return o;
+}
+function bodyJson(){
+  const count=Math.max(1,Math.min(50,+document.getElementById('count').value||1));
+  if(document.getElementById('wrapArr').checked){
+    const arr=[]; for(let i=0;i<count;i++) arr.push(buildObj(i));
+    return JSON.stringify(arr,null,2);
+  }
+  return JSON.stringify(buildObj(0),null,2);
+}
+function render(){
+  const code=statusSel.value;
+  document.getElementById('statusLine').textContent=`${document.getElementById('method').value} -> ${code} ${STATUSES[code]}`;
+  document.getElementById('output').textContent=bodyJson();
+}
+document.getElementById('addBtn').addEventListener('click',()=>{ fields.push({name:'field'+(fields.length+1),type:'string',val:''}); renderFields(); render(); });
+['status','method','wrapArr','count'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+document.getElementById('count').addEventListener('input',render);
+async function copy(text,btn){ try{ await navigator.clipboard.writeText(text);}catch{} const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1200); }
+document.getElementById('copyBtn').addEventListener('click',e=>copy(document.getElementById('output').textContent,e.target));
+document.getElementById('copyFull').addEventListener('click',e=>{
+  const code=statusSel.value;
+  const full=`HTTP/1.1 ${code} ${STATUSES[code]}\nContent-Type: application/json\n\n${bodyJson()}`;
+  copy(full,e.target);
+});
+renderFields(); render();
+</script>
+</body>
+</html>

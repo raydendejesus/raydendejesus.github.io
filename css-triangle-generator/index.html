@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Triangle Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 12px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 100%; height: 34px; border: none; background: none; }
+  select { width:100%; background:#0b1120; border:1px solid #1f2937; color:#e2e8f0; border-radius:8px; padding:8px; }
+  .stage { min-height: 300px; display: flex; align-items: center; justify-content: center; background:#0b1120; border-radius:10px; }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .85rem; margin-top: 14px; overflow-x:auto; white-space:pre-wrap; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>CSS Triangle Generator</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Direction</label>
+      <select id="dir">
+        <option value="up">Up</option>
+        <option value="down">Down</option>
+        <option value="left">Left</option>
+        <option value="right">Right</option>
+        <option value="up-left">Up-left</option>
+        <option value="up-right">Up-right</option>
+        <option value="down-left">Down-left</option>
+        <option value="down-right">Down-right</option>
+      </select>
+      <label>Width (px) <span class="val" id="wV">100</span></label>
+      <input type="range" id="w" min="10" max="200" value="100">
+      <label>Height (px) <span class="val" id="hV">100</span></label>
+      <input type="range" id="h" min="10" max="200" value="100">
+      <label>Color</label>
+      <input type="color" id="color" value="#38bdf8">
+    </div>
+    <div>
+      <div class="panel"><div class="stage"><div id="tri"></div></div></div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const ids=['dir','w','h','color'];
+  function compute(){
+    const w=+$('w').value, h=+$('h').value, c=$('color').value, dir=$('dir').value;
+    const T='transparent';
+    let bt=0,br=0,bb=0,bl=0, ct=T,cr=T,cb=T,cl=T;
+    const halfW=Math.round(w/2), halfH=Math.round(h/2);
+    switch(dir){
+      case 'up':    bl=halfW; br=halfW; bb=h; cb=c; break;
+      case 'down':  bl=halfW; br=halfW; bt=h; ct=c; break;
+      case 'left':  bt=halfH; bb=halfH; br=w; cr=c; break;
+      case 'right': bt=halfH; bb=halfH; bl=w; cl=c; break;
+      case 'up-left':    bt=h; br=w; ct=c; break;
+      case 'up-right':   bt=h; bl=w; ct=c; break;
+      case 'down-left':  bb=h; br=w; cb=c; break;
+      case 'down-right': bb=h; bl=w; cb=c; break;
+    }
+    return {bt,br,bb,bl,ct,cr,cb,cl};
+  }
+  function render(){
+    $('wV').textContent=$('w').value; $('hV').textContent=$('h').value;
+    const v=compute();
+    const el=$('tri');
+    el.style.width='0'; el.style.height='0';
+    el.style.borderStyle='solid';
+    el.style.borderTopWidth=v.bt+'px'; el.style.borderRightWidth=v.br+'px';
+    el.style.borderBottomWidth=v.bb+'px'; el.style.borderLeftWidth=v.bl+'px';
+    el.style.borderTopColor=v.ct; el.style.borderRightColor=v.cr;
+    el.style.borderBottomColor=v.cb; el.style.borderLeftColor=v.cl;
+    const css = `width: 0;\nheight: 0;\nborder-style: solid;\nborder-width: ${v.bt}px ${v.br}px ${v.bb}px ${v.bl}px;\nborder-color: ${v.ct} ${v.cr} ${v.cb} ${v.cl};`;
+    $('css').textContent=css;
+  }
+  ids.forEach(i=>$(i).addEventListener('input',render));
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

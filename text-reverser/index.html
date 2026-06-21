@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text Reverser</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1 { font-size:1.4rem; margin:.4rem 0 1rem; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px; margin-bottom:16px; }
+  textarea { width:100%; min-height:180px; resize:vertical; background:#0b1120; color:#e2e8f0;
+    border:1px solid #1f2937; border-radius:10px; padding:10px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+  label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; }
+  button { background:var(--accent); color:#06283d; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.08); }
+  button.secondary { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0; }
+</style>
+</head>
+<body>
+  <a href="../">&larr; back</a>
+  <h1>Text Reverser</h1>
+  <div class="panel">
+    <label><input type="radio" name="mode" value="chars" checked> By characters</label>
+    <label><input type="radio" name="mode" value="words"> By words</label>
+    <label><input type="radio" name="mode" value="lines"> By lines</label>
+  </div>
+  <div class="panel">
+    <textarea id="input" placeholder="Type or paste text..."></textarea>
+    <div class="row">
+      <button id="go">Reverse</button>
+      <button class="secondary" id="clear">Clear</button>
+    </div>
+  </div>
+  <div class="panel">
+    <textarea id="output" placeholder="Result..." readonly></textarea>
+    <div class="row"><button class="secondary" id="copy">Copy</button></div>
+  </div>
+<script>
+  const $ = id => document.getElementById(id);
+  function run() {
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    const t = $('input').value;
+    let r;
+    if (mode === 'chars') r = [...t].reverse().join('');
+    else if (mode === 'words') r = t.split(/(\s+)/).reverse().join('');
+    else r = t.split(/\r?\n/).reverse().join('\n');
+    $('output').value = r;
+  }
+  $('go').onclick = run;
+  $('clear').onclick = () => { $('input').value=''; $('output').value=''; };
+  $('copy').onclick = async () => {
+    await navigator.clipboard.writeText($('output').value);
+    const b=$('copy'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1200);
+  };
+</script>
+</body>
+</html>

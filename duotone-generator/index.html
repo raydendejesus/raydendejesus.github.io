@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duotone Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:900px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  label { font-size:.85rem; color:#94a3b8; margin-right:6px; }
+  input[type=color] { width:48px; height:36px; border:none; border-radius:8px; background:none; cursor:pointer; vertical-align:middle; }
+  input[type=file] { color:#94a3b8; }
+  input[type=range] { accent-color:var(--accent); vertical-align:middle; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:9px 14px; cursor:pointer; margin-left:8px; }
+  button:hover { border-color:var(--accent); }
+  canvas { max-width:100%; border:1px solid #1f2937; border-radius:12px; display:block; margin-top:16px; }
+  .ctl { display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  .preset { display:inline-block; width:26px; height:26px; border-radius:6px; cursor:pointer; border:1px solid #1f2937; vertical-align:middle; margin-right:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Duotone Generator</h1>
+  <div class="panel">
+    <input type="file" id="file" accept="image/*">
+    <div class="ctl">
+      <span><label>Shadow</label><input type="color" id="dark" value="#0b1f3a"></span>
+      <span><label>Highlight</label><input type="color" id="light" value="#38f8d4"></span>
+      <span><label>Intensity</label><input type="range" id="amt" min="0" max="100" value="100"></span>
+      <span id="presets"></span>
+      <button id="dl">Download PNG</button>
+    </div>
+    <canvas id="cv" width="500" height="280"></canvas>
+  </div>
+</div>
+<script>
+const file=document.getElementById('file'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const darkI=document.getElementById('dark'), lightI=document.getElementById('light'), amt=document.getElementById('amt');
+let original=null;
+const presets=[['#1a0b3a','#ff8edb'],['#0b1f3a','#38f8d4'],['#2b0a0a','#ffd166'],['#0a0a0a','#f5f5f5'],['#13072e','#7afcff']];
+const pc=document.getElementById('presets');
+presets.forEach(p=>{ const s=document.createElement('span'); s.className='preset'; s.style.background=`linear-gradient(135deg,${p[0]},${p[1]})`; s.onclick=()=>{ darkI.value=p[0]; lightI.value=p[1]; apply(); }; pc.appendChild(s); });
+function hexToRgb(h){ h=h.replace('#',''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+file.addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{ const img=new Image(); img.onload=()=>{
+    const maxW=820, scale=Math.min(1,maxW/img.width);
+    cv.width=Math.round(img.width*scale); cv.height=Math.round(img.height*scale);
+    ctx.drawImage(img,0,0,cv.width,cv.height);
+    original=ctx.getImageData(0,0,cv.width,cv.height);
+    apply();
+  }; img.src=ev.target.result; };
+  r.readAsDataURL(f);
+});
+function apply(){
+  if(!original) return;
+  const d=hexToRgb(darkI.value), l=hexToRgb(lightI.value);
+  const mix=amt.value/100;
+  const src=original.data;
+  const out=ctx.createImageData(original.width,original.height);
+  const o=out.data;
+  for(let i=0;i<src.length;i+=4){
+    const lum=(0.299*src[i]+0.587*src[i+1]+0.114*src[i+2])/255;
+    const dr=d[0]+(l[0]-d[0])*lum, dg=d[1]+(l[1]-d[1])*lum, db=d[2]+(l[2]-d[2])*lum;
+    o[i]=src[i]+(dr-src[i])*mix;
+    o[i+1]=src[i+1]+(dg-src[i+1])*mix;
+    o[i+2]=src[i+2]+(db-src[i+2])*mix;
+    o[i+3]=src[i+3];
+  }
+  ctx.putImageData(out,0,0);
+}
+[darkI,lightI,amt].forEach(el=>el.addEventListener('input',apply));
+document.getElementById('dl').onclick=()=>{ const a=document.createElement('a'); a.download='duotone.png'; a.href=cv.toDataURL('image/png'); a.click(); };
+</script>
+</body>
+</html>

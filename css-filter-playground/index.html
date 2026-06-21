@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Filter Playground</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 12px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .stage { min-height: 300px; display: flex; align-items: center; justify-content: center; background:#0b1120; border-radius:10px; }
+  .sample { width: 280px; height: 220px; border-radius: 12px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0b1120; font-size:1.4rem;
+    background: linear-gradient(135deg,#fbbf24,#f472b6 40%,#38bdf8 80%,#34d399); }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .85rem; margin-top: 14px; overflow-x:auto; white-space:pre-wrap; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  .reset { background:#1f2937; color:#e2e8f0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>CSS Filter Playground</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Blur (px) <span class="val" id="blurV">0</span></label>
+      <input type="range" id="blur" min="0" max="20" step="0.1" value="0">
+      <label>Brightness (%) <span class="val" id="brightV">100</span></label>
+      <input type="range" id="bright" min="0" max="300" value="100">
+      <label>Contrast (%) <span class="val" id="contrastV">100</span></label>
+      <input type="range" id="contrast" min="0" max="300" value="100">
+      <label>Saturate (%) <span class="val" id="satV">100</span></label>
+      <input type="range" id="sat" min="0" max="300" value="100">
+      <label>Hue rotate (deg) <span class="val" id="hueV">0</span></label>
+      <input type="range" id="hue" min="0" max="360" value="0">
+      <label>Grayscale (%) <span class="val" id="grayV">0</span></label>
+      <input type="range" id="gray" min="0" max="100" value="0">
+      <label>Sepia (%) <span class="val" id="sepiaV">0</span></label>
+      <input type="range" id="sepia" min="0" max="100" value="0">
+      <label>Invert (%) <span class="val" id="invertV">0</span></label>
+      <input type="range" id="invert" min="0" max="100" value="0">
+      <button class="reset" id="reset">Reset</button>
+    </div>
+    <div>
+      <div class="panel"><div class="stage"><div class="sample" id="sample">Sample</div></div></div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const defs = {blur:0,bright:100,contrast:100,sat:100,hue:0,gray:0,sepia:0,invert:0};
+  const ids = Object.keys(defs);
+  function render(){
+    ids.forEach(k=>$(k+'V').textContent=$(k).value);
+    const parts=[];
+    if(+$('blur').value) parts.push(`blur(${$('blur').value}px)`);
+    if(+$('bright').value!==100) parts.push(`brightness(${$('bright').value}%)`);
+    if(+$('contrast').value!==100) parts.push(`contrast(${$('contrast').value}%)`);
+    if(+$('sat').value!==100) parts.push(`saturate(${$('sat').value}%)`);
+    if(+$('hue').value) parts.push(`hue-rotate(${$('hue').value}deg)`);
+    if(+$('gray').value) parts.push(`grayscale(${$('gray').value}%)`);
+    if(+$('sepia').value) parts.push(`sepia(${$('sepia').value}%)`);
+    if(+$('invert').value) parts.push(`invert(${$('invert').value}%)`);
+    const f = parts.length ? parts.join(' ') : 'none';
+    $('sample').style.filter = f;
+    $('css').textContent = `filter: ${f};`;
+  }
+  ids.forEach(i=>$(i).addEventListener('input',render));
+  $('reset').addEventListener('click',()=>{ ids.forEach(k=>$(k).value=defs[k]); render(); });
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

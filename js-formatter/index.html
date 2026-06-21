@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS Formatter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>JS Formatter</h1>
+<p class="sub">Basic brace-based JavaScript beautify and minify.</p>
+<div class="toolbar">
+  <button id="beautify">Beautify</button>
+  <button id="minify" class="ghost">Minify</button>
+  <button id="copy" class="ghost">Copy</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col"><div class="colhead">JS input</div>
+    <textarea id="input" spellcheck="false" placeholder="function f(a){if(a){return a*2;}return 0;}"></textarea></div>
+  <div class="col"><div class="colhead">Output</div><pre id="output"></pre></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+// Tokenize preserving strings/comments/regex/templates so we don't reformat inside them.
+function tokenize(src){
+  const toks=[]; let i=0; const n=src.length;
+  const prevSig=()=>{ for(let k=toks.length-1;k>=0;k--){ if(toks[k].t==='ws'||toks[k].t==='cmt') continue; return toks[k]; } return null; };
+  while(i<n){
+    const c=src[i];
+    if(c===' '||c==='\t'||c==='\n'||c==='\r'){ let s='';while(i<n&&/[ \t\r\n]/.test(src[i]))s+=src[i++]; toks.push({t:'ws',v:s}); continue; }
+    if(c==='/'&&src[i+1]==='/'){ let s='';while(i<n&&src[i]!=='\n')s+=src[i++]; toks.push({t:'cmt',v:s}); continue; }
+    if(c==='/'&&src[i+1]==='*'){ let s=src.slice(i,i+2);i+=2;while(i<n&&!(src[i]==='*'&&src[i+1]==='/'))s+=src[i++]; s+='*/';i+=2; toks.push({t:'cmt',v:s}); continue; }
+    if(c==='"'||c==="'"){ let q=c,s=c;i++;while(i<n){s+=src[i];if(src[i]==='\\'){s+=src[i+1];i+=2;continue;}if(src[i]===q){i++;break;}i++;} toks.push({t:'str',v:s}); continue; }
+    if(c==='`'){ let s=c;i++;while(i<n){s+=src[i];if(src[i]==='\\'){s+=src[i+1];i+=2;continue;}if(src[i]==='`'){i++;break;}i++;} toks.push({t:'str',v:s}); continue; }
+    if(c==='/'){
+      const p=prevSig();
+      const regexOk=!p||p.t==='punc'&&!')]}'.includes(p.v)||p.t==='kw';
+      if(regexOk){ let s=c;i++;let inCls=false;while(i<n){s+=src[i];if(src[i]==='\\'){s+=src[i+1];i+=2;continue;}if(src[i]==='[')inCls=true;else if(src[i]===']')inCls=false;else if(src[i]==='/'&&!inCls){i++;break;}i++;} while(i<n&&/[a-z]/i.test(src[i]))s+=src[i++]; toks.push({t:'regex',v:s}); continue; }
+    }
+    if(/[A-Za-z_$]/.test(c)){ let s='';while(i<n&&/[A-Za-z0-9_$]/.test(src[i]))s+=src[i++]; const kw=['return','if','else','for','while','do','function','var','let','const','new','typeof','in','of','instanceof','case','throw','delete','void','yield','await'].includes(s); toks.push({t:kw?'kw':'word',v:s}); continue; }
+    if(/[0-9]/.test(c)){ let s='';while(i<n&&/[0-9a-fxA-FX.eE+_]/.test(src[i]))s+=src[i++]; toks.push({t:'num',v:s}); continue; }
+    toks.push({t:'punc',v:c}); i++;
+  }
+  return toks;
+}
+function beautify(src){
+  const toks=tokenize(src).filter(t=>t.t!=='ws');
+  let out=''; let depth=0; const pad=()=>'  '.repeat(Math.max(depth,0));
+  let atLineStart=true; let i=0;
+  const append=s=>{ if(atLineStart){out+=pad();atLineStart=false;} out+=s; };
+  const newline=()=>{ out=out.replace(/[ \t]+$/,''); out+='\n'; atLineStart=true; };
+  while(i<toks.length){
+    const tk=toks[i]; const prev=toks[i-1];
+    if(tk.t==='cmt'){ append(tk.v); newline(); i++; continue; }
+    if(tk.t==='punc'){
+      if(tk.v==='{'){ append('{'); depth++; newline(); i++; continue; }
+      if(tk.v==='}'){ depth=Math.max(depth-1,0); if(!atLineStart) newline(); append('}');
+        const nx=toks[i+1];
+        if(nx&&(nx.v===';'||nx.v===','||nx.v===')')){ /* keep */ }
+        else newline();
+        i++; continue; }
+      if(tk.v===';'){ append(';'); newline(); i++; continue; }
+      if(tk.v===','){ append(','); newline(); i++; continue; }
+      // operators/punct spacing
+      if('([.'.includes(tk.v)){ append(tk.v); i++; continue; }
+      if(')]'.includes(tk.v)){ append(tk.v); i++; continue; }
+      append(tk.v); i++; continue;
+    }
+    // words/keywords/strings/numbers/regex
+    let s=tk.v;
+    if(prev && !atLineStart){
+      const needSpace = (prev.t==='word'||prev.t==='kw'||prev.t==='num'||prev.t==='str'||prev.t==='regex'||prev.v===')'||prev.v===']') &&
+                        (tk.t==='word'||tk.t==='kw'||tk.t==='num'||tk.t==='str'||tk.t==='regex');
+      if(needSpace) s=' '+s;
+      if((prev.t==='kw')&&!atLineStart && tk.v==='(') {}
+    }
+    append(s); i++;
+  }
+  return out.replace(/\n{3,}/g,'\n\n').replace(/[ \t]+\n/g,'\n').replace(/\n+$/,'');
+}
+function minify(src){
+  const toks=tokenize(src).filter(t=>t.t!=='cmt');
+  let out='';
+  for(let i=0;i<toks.length;i++){
+    const tk=toks[i];
+    if(tk.t==='ws'){
+      // collapse to single space only if needed between identifiers/keywords/numbers
+      const prev=out.slice(-1); const next=(toks[i+1]||{}).v||'';
+      if(/[A-Za-z0-9_$]/.test(prev)&&/[A-Za-z0-9_$]/.test(next[0]||'')) out+=' ';
+      continue;
+    }
+    out+=tk.v;
+  }
+  return out.trim();
+}
+function run(fn){
+  const src=$('input').value;
+  if(!src.trim()){setStatus('Nothing to process','err');$('output').textContent='';return;}
+  try{ $('output').textContent=fn(src); setStatus('Done','ok'); }
+  catch(e){ setStatus('Error: '+e.message,'err'); }
+}
+$('beautify').onclick=()=>run(beautify);
+$('minify').onclick=()=>run(minify);
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared');};
+$('copy').onclick=async()=>{const t=$('output').textContent;if(!t){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(t);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+</script>
+</body>
+</html>

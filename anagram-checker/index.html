@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anagram Checker</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1 { font-size:1.4rem; margin:.4rem 0 1rem; }
+  h2 { font-size:1.05rem; margin:0 0 10px; color:#cbd5e1; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px; margin-bottom:16px; }
+  textarea, input[type=text] { width:100%; background:#0b1120; color:#e2e8f0;
+    border:1px solid #1f2937; border-radius:10px; padding:10px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+  textarea { min-height:140px; resize:vertical; }
+  input[type=text] { margin-bottom:8px; }
+  label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; }
+  button { background:var(--accent); color:#06283d; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.08); }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0; }
+  .result { font-size:1.05rem; font-weight:600; }
+  .yes { color:#4ade80; } .no { color:#f87171; }
+  .out { font-family:ui-monospace,Consolas,monospace; font-size:13px; white-space:pre-wrap; color:#cbd5e1; }
+</style>
+</head>
+<body>
+  <a href="../">&larr; back</a>
+  <h1>Anagram Checker</h1>
+  <div class="panel">
+    <label><input type="checkbox" id="spaces" checked> Ignore spaces &amp; punctuation</label>
+    <label><input type="checkbox" id="ci" checked> Case-insensitive</label>
+  </div>
+  <div class="panel">
+    <h2>Compare two phrases</h2>
+    <input type="text" id="a" placeholder="First phrase">
+    <input type="text" id="b" placeholder="Second phrase">
+    <div class="row"><button id="check">Check</button> <span class="result" id="cmpResult"></span></div>
+  </div>
+  <div class="panel">
+    <h2>Find anagrams in a word list</h2>
+    <input type="text" id="word" placeholder="Target word">
+    <textarea id="list" placeholder="One word per line..."></textarea>
+    <div class="row"><button id="find">Find anagrams</button></div>
+    <div class="out" id="findResult"></div>
+  </div>
+<script>
+  const $ = id => document.getElementById(id);
+  function norm(s) {
+    if ($('ci').checked) s = s.toLowerCase();
+    if ($('spaces').checked) s = s.replace(/[^\p{L}\p{N}]/gu, '');
+    return [...s].sort().join('');
+  }
+  $('check').onclick = () => {
+    const a = $('a').value, b = $('b').value;
+    if (!a.trim() || !b.trim()) { $('cmpResult').textContent = 'Enter both phrases.'; $('cmpResult').className='result'; return; }
+    const same = norm(a) === norm(b);
+    const r = $('cmpResult');
+    r.textContent = same ? 'Yes — they are anagrams!' : 'No — not anagrams.';
+    r.className = 'result ' + (same ? 'yes' : 'no');
+  };
+  $('find').onclick = () => {
+    const target = $('word').value.trim();
+    if (!target) { $('findResult').textContent = 'Enter a target word.'; return; }
+    const key = norm(target);
+    const matches = $('list').value.split(/\r?\n/).map(w => w.trim())
+      .filter(w => w && norm(w) === key && w.toLowerCase() !== target.toLowerCase());
+    $('findResult').textContent = matches.length
+      ? matches.length + ' anagram(s):\n' + matches.join('\n')
+      : 'No anagrams found in the list.';
+  };
+</script>
+</body>
+</html>

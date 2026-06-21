@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON to YAML</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+    font-size:13px;color:#94a3b8;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;
+    font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>JSON to YAML</h1>
+<p class="sub">Convert JSON into YAML.</p>
+<div class="toolbar">
+  <button id="convert">Convert</button>
+  <button id="copy" class="ghost">Copy output</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col">
+    <div class="colhead"><span>JSON</span></div>
+    <textarea id="input" spellcheck="false" placeholder='{"name":"test","tags":["a","b"],"nested":{"k":1}}'></textarea>
+  </div>
+  <div class="col">
+    <div class="colhead"><span>YAML</span></div>
+    <pre id="output"></pre>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(msg,ok){$('status').textContent=msg;$('status').className='status '+(ok?'ok':'err');}
+
+function needsQuote(s){
+  if(s==='')return true;
+  if(/^[\s]|[\s]$/.test(s))return true;
+  if(/[:#\[\]{}&*!|>'"%@`,]/.test(s))return true;
+  if(/^(true|false|null|yes|no|~)$/i.test(s))return true;
+  if(/^-?\d/.test(s)&&/^-?\d*\.?\d+([eE][+-]?\d+)?$/.test(s))return true;
+  if(/^[-?]/.test(s))return true;
+  return false;
+}
+function scalar(v){
+  if(v===null)return 'null';
+  if(typeof v==='boolean')return v?'true':'false';
+  if(typeof v==='number')return String(v);
+  let s=String(v);
+  if(needsQuote(s))return JSON.stringify(s);
+  return s;
+}
+function dump(v,indent){
+  const pad='  '.repeat(indent);
+  if(Array.isArray(v)){
+    if(v.length===0)return pad+'[]\n';
+    let out='';
+    for(const item of v){
+      if(item!==null&&typeof item==='object'&&Object.keys(item).length){
+        const block=dump(item,indent+1);
+        // place dash before first child line
+        const lines=block.split('\n');
+        let firstNonEmpty=lines.findIndex(l=>l.trim());
+        out+=pad+'-'+lines[firstNonEmpty].slice(pad.length+1)+'\n';
+        for(let i=firstNonEmpty+1;i<lines.length;i++)if(lines[i]!=='')out+=lines[i]+'\n';
+      } else if(item!==null&&typeof item==='object'){
+        out+=pad+'- '+(Array.isArray(item)?'[]':'{}')+'\n';
+      } else {
+        out+=pad+'- '+scalar(item)+'\n';
+      }
+    }
+    return out;
+  }
+  if(v!==null&&typeof v==='object'){
+    const keys=Object.keys(v);
+    if(keys.length===0)return pad+'{}\n';
+    let out='';
+    for(const k of keys){
+      const val=v[k];
+      const key=needsQuote(k)?JSON.stringify(k):k;
+      if(val!==null&&typeof val==='object'&&Object.keys(val).length){
+        out+=pad+key+':\n'+dump(val,indent+1);
+      } else if(val!==null&&typeof val==='object'){
+        out+=pad+key+': '+(Array.isArray(val)?'[]':'{}')+'\n';
+      } else {
+        out+=pad+key+': '+scalar(val)+'\n';
+      }
+    }
+    return out;
+  }
+  return pad+scalar(v)+'\n';
+}
+
+$('convert').onclick=()=>{
+  try{
+    const raw=$('input').value;
+    if(!raw.trim())throw new Error('Input is empty');
+    const obj=JSON.parse(raw);
+    const y=dump(obj,0);
+    $('output').textContent=y.replace(/\n+$/,'\n');
+    setStatus('Converted ✓',true);
+  }catch(e){setStatus('Error: '+e.message,false);}
+};
+$('copy').onclick=async()=>{
+  const text=$('output').textContent;
+  if(!text){setStatus('Nothing to copy',false);return;}
+  try{await navigator.clipboard.writeText(text);setStatus('Copied ✓',true);}
+  catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);
+    ta.select();try{document.execCommand('copy');setStatus('Copied ✓',true);}catch(_){setStatus('Copy failed',false);}document.body.removeChild(ta);}
+};
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared',true);};
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Number Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:680px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  .row { display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  label { font-size:14px; }
+  .row label.chk { display:flex; align-items:center; gap:6px; }
+  input[type=number] { width:110px; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:7px 9px; font-size:14px; }
+  input[type=checkbox] { accent-color:var(--accent); }
+  .sep { margin-top:14px; }
+  .sep select { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:5px 8px; }
+  textarea { width:100%; min-height:200px; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:12px; font-family:ui-monospace,monospace; font-size:14px; resize:vertical; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:active { transform:translateY(1px); }
+  .btns { display:flex; gap:10px; margin-top:12px; }
+  .err { color:#f87171; font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; back</a>
+  <h1>Random Number Generator</h1>
+  <p class="sub">Pick a range and count, with unique and sort options.</p>
+  <div class="panel">
+    <div class="row">
+      <label>Min <input type="number" id="min" value="1"></label>
+      <label>Max <input type="number" id="max" value="100"></label>
+      <label>Count <input type="number" id="count" value="10" min="1" max="100000"></label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label class="chk"><input type="checkbox" id="unique"> unique</label>
+      <label class="chk"><input type="checkbox" id="sort"> sort ascending</label>
+    </div>
+    <div class="sep">
+      <label>Separator
+        <select id="seprt"><option value="\n">newline</option><option value=", ">comma</option><option value=" ">space</option></select>
+      </label>
+    </div>
+    <div class="btns"><button id="genBtn">Generate</button></div>
+    <div class="err" id="err"></div>
+  </div>
+  <div class="panel">
+    <textarea id="output" readonly></textarea>
+    <div class="btns"><button id="copyBtn">Copy</button></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function randInt(min,max){ const range=max-min+1; const a=new Uint32Array(1); crypto.getRandomValues(a); return min+(a[0]%range); }
+function generate(){
+  $('err').textContent='';
+  let min=Math.floor(+$('min').value), max=Math.floor(+$('max').value);
+  if(min>max){ [min,max]=[max,min]; $('min').value=min; $('max').value=max; }
+  let count=Math.max(1,Math.min(100000,Math.floor(+$('count').value)||1));
+  const unique=$('unique').checked, sort=$('sort').checked;
+  const span=max-min+1;
+  if(unique && count>span){ $('err').textContent=`Can't pick ${count} unique numbers from a range of ${span}.`; $('output').value=''; return; }
+  let nums=[];
+  if(unique){
+    if(count > span/2){
+      // shuffle a full pool
+      const pool=[]; for(let i=min;i<=max;i++) pool.push(i);
+      for(let i=pool.length-1;i>0;i--){ const a=new Uint32Array(1); crypto.getRandomValues(a); const k=a[0]%(i+1); [pool[i],pool[k]]=[pool[k],pool[i]]; }
+      nums=pool.slice(0,count);
+    } else {
+      const set=new Set();
+      while(set.size<count) set.add(randInt(min,max));
+      nums=[...set];
+    }
+  } else {
+    for(let i=0;i<count;i++) nums.push(randInt(min,max));
+  }
+  if(sort) nums.sort((a,b)=>a-b);
+  const sep=$('seprt').value==='\\n'?'\n':$('seprt').value;
+  $('output').value=nums.join(sep);
+}
+$('genBtn').addEventListener('click',generate);
+$('copyBtn').addEventListener('click', async e=>{
+  if(!$('output').value) return;
+  try{ await navigator.clipboard.writeText($('output').value); }catch{ $('output').select(); document.execCommand('copy'); }
+  const b=e.target,t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);
+});
+generate();
+</script>
+</body>
+</html>

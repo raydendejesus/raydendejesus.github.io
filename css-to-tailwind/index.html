@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS to Tailwind</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  textarea { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937;
+    border-radius:10px; padding:10px; font-family:ui-monospace, monospace; font-size:.9rem; min-height:160px; resize:vertical; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media(max-width:760px){ .grid{ grid-template-columns:1fr; } }
+  .row { display:flex; gap:8px; margin-top:10px; }
+  .out { font-family:ui-monospace,monospace; font-size:.95rem; word-break:break-word; min-height:80px; }
+  .note { color:#64748b; font-size:.78rem; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>CSS to Tailwind</h1>
+  <div class="grid">
+    <div class="panel">
+      <label>CSS declarations</label>
+      <textarea id="in" oninput="convert()">display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 16px;
+margin-top: 8px;
+color: #ffffff;
+background-color: #000000;
+font-size: 14px;
+font-weight: 700;
+border-radius: 8px;
+text-align: center;
+width: 100%;</textarea>
+    </div>
+    <div class="panel">
+      <label>Tailwind classes (approximate)</label>
+      <div class="out" id="out"></div>
+      <div class="row"><button onclick="copyOut()">Copy</button></div>
+      <div class="note">Common-case mapping; px values use the 4px=1 scale, arbitrary values use [..] syntax.</div>
+    </div>
+  </div>
+</div>
+<script>
+  function spc(v) {
+    var m = v.match(/^(-?\d+(?:\.\d+)?)px$/);
+    if (m) { var n = parseFloat(m[1]); if (n % 4 === 0) return String(n/4); return '['+v+']'; }
+    if (v === '0') return '0';
+    if (v === 'auto') return 'auto';
+    return '['+v+']';
+  }
+  var staticMap = {
+    'display:flex':'flex','display:block':'block','display:inline-block':'inline-block',
+    'display:inline':'inline','display:grid':'grid','display:none':'hidden','display:inline-flex':'inline-flex',
+    'flex-direction:row':'flex-row','flex-direction:column':'flex-col','flex-wrap:wrap':'flex-wrap','flex-wrap:nowrap':'flex-nowrap',
+    'align-items:center':'items-center','align-items:flex-start':'items-start','align-items:flex-end':'items-end','align-items:stretch':'items-stretch','align-items:baseline':'items-baseline',
+    'justify-content:center':'justify-center','justify-content:flex-start':'justify-start','justify-content:flex-end':'justify-end','justify-content:space-between':'justify-between','justify-content:space-around':'justify-around','justify-content:space-evenly':'justify-evenly',
+    'text-align:center':'text-center','text-align:left':'text-left','text-align:right':'text-right','text-align:justify':'text-justify',
+    'font-weight:700':'font-bold','font-weight:bold':'font-bold','font-weight:600':'font-semibold','font-weight:500':'font-medium','font-weight:400':'font-normal','font-weight:300':'font-light','font-weight:900':'font-black',
+    'font-style:italic':'italic','text-decoration:underline':'underline','text-decoration:none':'no-underline','text-transform:uppercase':'uppercase','text-transform:lowercase':'lowercase','text-transform:capitalize':'capitalize',
+    'position:relative':'relative','position:absolute':'absolute','position:fixed':'fixed','position:sticky':'sticky','position:static':'static',
+    'overflow:hidden':'overflow-hidden','overflow:auto':'overflow-auto','overflow:scroll':'overflow-scroll','overflow:visible':'overflow-visible',
+    'cursor:pointer':'cursor-pointer','cursor:default':'cursor-default','cursor:not-allowed':'cursor-not-allowed',
+    'width:100%':'w-full','width:auto':'w-auto','width:100vw':'w-screen','height:100%':'h-full','height:auto':'h-auto','height:100vh':'h-screen',
+    'flex-grow:1':'grow','flex-shrink:0':'shrink-0','box-sizing:border-box':'box-border',
+    'white-space:nowrap':'whitespace-nowrap','visibility:hidden':'invisible','opacity:0':'opacity-0','opacity:1':'opacity-100'
+  };
+  var fontSize = {'12px':'text-xs','14px':'text-sm','16px':'text-base','18px':'text-lg','20px':'text-xl','24px':'text-2xl','30px':'text-3xl','36px':'text-4xl'};
+  var radius = {'0':'rounded-none','2px':'rounded-sm','4px':'rounded','6px':'rounded-md','8px':'rounded-lg','12px':'rounded-xl','16px':'rounded-2xl','24px':'rounded-3xl','9999px':'rounded-full','50%':'rounded-full'};
+  function convert() {
+    var lines = document.getElementById('in').value.split(/[;\n]/).map(function(x){return x.trim();}).filter(Boolean);
+    var classes = [];
+    lines.forEach(function(line){
+      var i = line.indexOf(':'); if (i<0) return;
+      var prop = line.slice(0,i).trim().toLowerCase();
+      var val = line.slice(i+1).trim().toLowerCase().replace(/\s+/g,' ');
+      var key = prop + ':' + val;
+      if (staticMap[key]) { classes.push(staticMap[key]); return; }
+      if (prop === 'font-size') { classes.push(fontSize[val] || 'text-['+val+']'); return; }
+      if (prop === 'border-radius') { classes.push(radius[val] || 'rounded-['+val+']'); return; }
+      if (prop === 'color') { classes.push('text-['+val+']'); return; }
+      if (prop === 'background-color' || prop === 'background') { classes.push('bg-['+val+']'); return; }
+      if (prop === 'padding') { classes.push('p-'+spc(val)); return; }
+      if (prop === 'padding-top') { classes.push('pt-'+spc(val)); return; }
+      if (prop === 'padding-bottom') { classes.push('pb-'+spc(val)); return; }
+      if (prop === 'padding-left') { classes.push('pl-'+spc(val)); return; }
+      if (prop === 'padding-right') { classes.push('pr-'+spc(val)); return; }
+      if (prop === 'margin') { classes.push('m-'+spc(val)); return; }
+      if (prop === 'margin-top') { classes.push('mt-'+spc(val)); return; }
+      if (prop === 'margin-bottom') { classes.push('mb-'+spc(val)); return; }
+      if (prop === 'margin-left') { classes.push('ml-'+spc(val)); return; }
+      if (prop === 'margin-right') { classes.push('mr-'+spc(val)); return; }
+      if (prop === 'gap') { classes.push('gap-'+spc(val)); return; }
+      if (prop === 'width') { classes.push('w-'+spc(val)); return; }
+      if (prop === 'height') { classes.push('h-'+spc(val)); return; }
+      if (prop === 'top') { classes.push('top-'+spc(val)); return; }
+      if (prop === 'left') { classes.push('left-'+spc(val)); return; }
+      if (prop === 'right') { classes.push('right-'+spc(val)); return; }
+      if (prop === 'bottom') { classes.push('bottom-'+spc(val)); return; }
+      if (prop === 'line-height') { classes.push('leading-['+val+']'); return; }
+      if (prop === 'z-index') { classes.push('z-['+val+']'); return; }
+      classes.push('/* ' + prop + ': ' + val + ' ? */');
+    });
+    document.getElementById('out').textContent = classes.join(' ');
+  }
+  function copyOut(){ navigator.clipboard.writeText(document.getElementById('out').textContent); }
+  convert();
+</script>
+</body>
+</html>

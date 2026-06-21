@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flexbox Playground</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:880px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  #stage{min-height:240px;border-radius:14px;border:1px solid #1f2937;background:#0b1120;margin-bottom:16px;padding:10px;}
+  #flex{display:flex;min-height:220px;gap:10px;}
+  .item{background:linear-gradient(135deg,#38bdf8,#a855f7);color:#04222e;font-weight:700;border-radius:10px;padding:18px 22px;display:flex;align-items:center;justify-content:center;}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+  .controls label{font-size:.85rem;color:#94a3b8;display:flex;flex-direction:column;gap:6px;}
+  select,input[type=number]{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:7px;}
+  button.act{background:var(--accent);color:#04222e;border:none;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;}
+  button.act:hover{filter:brightness(1.1);}
+  button.sec{background:#1f2937;color:#e2e8f0;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;margin-right:8px;}
+  code{display:block;white-space:pre;background:#0b1120;border:1px solid #1f2937;border-radius:10px;padding:12px;font-family:ui-monospace,monospace;font-size:.9rem;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Flexbox Playground</h1>
+  <div id="stage"><div id="flex"></div></div>
+  <div class="panel">
+    <div class="controls">
+      <label>flex-direction<select id="dir"><option>row</option><option>row-reverse</option><option>column</option><option>column-reverse</option></select></label>
+      <label>justify-content<select id="jc"><option>flex-start</option><option>flex-end</option><option>center</option><option>space-between</option><option>space-around</option><option>space-evenly</option></select></label>
+      <label>align-items<select id="ai"><option>stretch</option><option>flex-start</option><option>flex-end</option><option>center</option><option>baseline</option></select></label>
+      <label>flex-wrap<select id="fw"><option>nowrap</option><option>wrap</option><option>wrap-reverse</option></select></label>
+      <label>gap (px)<input type="number" id="gap" value="10" min="0" max="80"></label>
+      <label>items<input type="number" id="count" value="4" min="1" max="12"></label>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="sec" id="add">+ item</button>
+      <button class="sec" id="rem">− item</button>
+    </div>
+  </div>
+  <div class="panel">
+    <code id="css"></code>
+    <button class="act" id="copy">Copy CSS</button>
+  </div>
+</div>
+<script>
+  const $=id=>document.getElementById(id);
+  let n=4;
+  function build(){const f=$('flex');f.innerHTML='';for(let i=1;i<=n;i++){const d=document.createElement('div');d.className='item';d.textContent=i;f.appendChild(d);}}
+  function update(){
+    const f=$('flex');
+    f.style.flexDirection=$('dir').value;
+    f.style.justifyContent=$('jc').value;
+    f.style.alignItems=$('ai').value;
+    f.style.flexWrap=$('fw').value;
+    f.style.gap=$('gap').value+'px';
+    $('css').textContent=`display: flex;\nflex-direction: ${$('dir').value};\njustify-content: ${$('jc').value};\nalign-items: ${$('ai').value};\nflex-wrap: ${$('fw').value};\ngap: ${$('gap').value}px;`;
+  }
+  ['dir','jc','ai','fw','gap'].forEach(i=>$(i).addEventListener('input',update));
+  $('count').addEventListener('input',()=>{n=Math.max(1,Math.min(12,+$('count').value||1));build();});
+  $('add').addEventListener('click',()=>{if(n<12){n++;$('count').value=n;build();}});
+  $('rem').addEventListener('click',()=>{if(n>1){n--;$('count').value=n;build();}});
+  $('copy').addEventListener('click',()=>{navigator.clipboard.writeText($('css').textContent);const b=$('copy');b.textContent='Copied!';setTimeout(()=>b.textContent='Copy CSS',1200);});
+  build();update();
+</script>
+</body>
+</html>

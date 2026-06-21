@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML Character Entities Reference</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  h1 { font-weight:600; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  input[type=text] { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-top:14px; }
+  .card { background:#0b1120; border:1px solid #1f2937; border-radius:10px; padding:10px; text-align:center; cursor:pointer; }
+  .card:hover { border-color:var(--accent); }
+  .glyph { font-size:28px; line-height:1.1; }
+  .nm { color:var(--accent); font-family:ui-monospace,monospace; font-size:12px; margin-top:6px; word-break:break-all; }
+  .nb { color:#94a3b8; font-family:ui-monospace,monospace; font-size:11px; }
+  .count { color:#94a3b8; font-size:13px; margin-top:10px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1f2937; border:1px solid var(--accent); padding:8px 16px; border-radius:10px; opacity:0; transition:.2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>HTML Character Entities Reference</h1>
+  <div class="panel">
+    <input id="q" type="text" placeholder="Search by name, number, or character (amp, 169, ©)…" autofocus>
+    <div class="count" id="count"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const E = [
+  ["amp",38],["lt",60],["gt",62],["quot",34],["apos",39],["nbsp",160],["copy",169],["reg",174],
+  ["trade",8482],["cent",162],["pound",163],["yen",165],["euro",8364],["curren",164],["sect",167],
+  ["para",182],["middot",183],["deg",176],["plusmn",177],["times",215],["divide",247],["frac12",189],
+  ["frac14",188],["frac34",190],["sup1",185],["sup2",178],["sup3",179],["micro",181],["ordm",186],
+  ["ordf",170],["laquo",171],["raquo",187],["iquest",191],["iexcl",161],["hellip",8230],["ndash",8211],
+  ["mdash",8212],["lsquo",8216],["rsquo",8217],["ldquo",8220],["rdquo",8221],["dagger",8224],["Dagger",8225],
+  ["bull",8226],["prime",8242],["Prime",8243],["larr",8592],["uarr",8593],["rarr",8594],["darr",8595],
+  ["harr",8596],["spades",9824],["clubs",9827],["hearts",9829],["diams",9830],["alpha",945],["beta",946],
+  ["gamma",947],["delta",948],["epsilon",949],["theta",952],["lambda",955],["mu",956],["pi",960],
+  ["sigma",963],["phi",966],["omega",969],["Sigma",931],["Omega",937],["Delta",916],["Pi",928],
+  ["infin",8734],["ne",8800],["le",8804],["ge",8805],["asymp",8776],["equiv",8801],["sum",8721],
+  ["prod",8719],["radic",8730],["int",8747],["part",8706],["nabla",8711],["forall",8704],["exist",8707],
+  ["isin",8712],["notin",8713],["sub",8834],["sup",8835],["cup",8746],["cap",8745],["and",8743],
+  ["or",8744],["not",172],["check",10003],["cross",10007],["star",9733],["female",9792],["male",9794]
+];
+const grid=document.getElementById('grid'), q=document.getElementById('q'), count=document.getElementById('count'), toast=document.getElementById('toast');
+function show(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(show._t);show._t=setTimeout(()=>toast.classList.remove('show'),1100);}
+function render(list){
+  grid.innerHTML='';
+  for(const [name,num] of list){
+    const ch=String.fromCodePoint(num);
+    const named=`&${name};`, numeric=`&#${num};`;
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`<div class="glyph">${ch}</div><div class="nm">${named.replace(/&/g,'&amp;')}</div><div class="nb">${numeric.replace(/&/g,'&amp;')}</div>`;
+    card.onclick=()=>{navigator.clipboard.writeText(named);show('Copied '+named);};
+    card.oncontextmenu=(e)=>{e.preventDefault();navigator.clipboard.writeText(numeric);show('Copied '+numeric);};
+    card.title='click: named  •  right-click: numeric';
+    grid.appendChild(card);
+  }
+  count.textContent=`${list.length} of ${E.length} entities — click copies named, right-click copies numeric`;
+}
+function filter(){
+  const s=q.value.trim().toLowerCase();
+  if(!s){render(E);return;}
+  render(E.filter(([name,num])=>name.toLowerCase().includes(s)||String(num).includes(s)||String.fromCodePoint(num)===q.value.trim()));
+}
+q.addEventListener('input',filter);
+render(E);
+</script>
+</body>
+</html>

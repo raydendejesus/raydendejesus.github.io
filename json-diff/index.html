@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Diff</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,1100px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea{height:34vh;min-height:200px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;width:100%;resize:vertical;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+  #result{width:min(96vw,1100px);background:#111827;border:1px solid #1f2937;border-radius:14px;padding:16px;margin-top:16px;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:13px;line-height:1.7;min-height:120px;overflow:auto;}
+  .added{color:#4ade80;}.removed{color:#f87171;}.changed{color:#fbbf24;}
+  .grp{font-weight:700;margin:8px 0 2px;color:#94a3b8;}
+  .none{color:#64748b;}
+  code{color:#7dd3fc;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>JSON Diff</h1>
+<p class="sub">Compare two JSON blobs: added, removed, and changed keys.</p>
+<div class="grid">
+  <div class="col"><div class="colhead">JSON A (original)</div>
+    <textarea id="a" spellcheck="false" placeholder='{"name":"Alice","age":30}'></textarea></div>
+  <div class="col"><div class="colhead">JSON B (new)</div>
+    <textarea id="b" spellcheck="false" placeholder='{"name":"Alice","age":31,"city":"NYC"}'></textarea></div>
+</div>
+<div class="toolbar">
+  <button id="diff">Compare</button>
+  <button id="copy" class="ghost">Copy report</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div id="result"></div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+function isObj(v){return v&&typeof v==='object'&&!Array.isArray(v);}
+function fmt(v){return JSON.stringify(v);}
+let lastReport='';
+function diff(a,b,path,acc){
+  if(isObj(a)&&isObj(b)){
+    const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+    [...keys].sort().forEach(k=>{
+      const p=path?path+'.'+k:k;
+      if(!(k in a)) acc.added.push({p,v:b[k]});
+      else if(!(k in b)) acc.removed.push({p,v:a[k]});
+      else diff(a[k],b[k],p,acc);
+    });
+  } else if(JSON.stringify(a)!==JSON.stringify(b)){
+    acc.changed.push({p:path||'(root)',from:a,to:b});
+  }
+  return acc;
+}
+function run(){
+  let A,B;
+  try{ A=JSON.parse($('a').value); }catch(e){ setStatus('JSON A error: '+e.message,'err'); return; }
+  try{ B=JSON.parse($('b').value); }catch(e){ setStatus('JSON B error: '+e.message,'err'); return; }
+  const acc=diff(A,B,'',{added:[],removed:[],changed:[]});
+  let html=''; const lines=[];
+  function section(title,items,render,cls){
+    html+='<div class="grp">'+title+' ('+items.length+')</div>';
+    if(items.length===0){ html+='<div class="none">none</div>'; return; }
+    items.forEach(it=>{ const {h,t}=render(it); html+='<div class="'+cls+'">'+h+'</div>'; lines.push(t); });
+  }
+  lines.push('ADDED:');
+  section('Added',acc.added,it=>({h:'+ '+esc(it.p)+' = <code>'+esc(fmt(it.v))+'</code>',t:'  + '+it.p+' = '+fmt(it.v)}),'added');
+  lines.push('REMOVED:');
+  section('Removed',acc.removed,it=>({h:'- '+esc(it.p)+' = <code>'+esc(fmt(it.v))+'</code>',t:'  - '+it.p+' = '+fmt(it.v)}),'removed');
+  lines.push('CHANGED:');
+  section('Changed',acc.changed,it=>({h:'~ '+esc(it.p)+': <code>'+esc(fmt(it.from))+'</code> → <code>'+esc(fmt(it.to))+'</code>',t:'  ~ '+it.p+': '+fmt(it.from)+' -> '+fmt(it.to)}),'changed');
+  $('result').innerHTML=html;
+  lastReport=lines.join('\n');
+  const total=acc.added.length+acc.removed.length+acc.changed.length;
+  setStatus(total===0?'Identical':total+' difference(s)',total===0?'ok':'');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+$('diff').onclick=run;
+$('clear').onclick=()=>{$('a').value='';$('b').value='';$('result').innerHTML='';setStatus('Cleared');};
+$('copy').onclick=async()=>{if(!lastReport){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(lastReport);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+</script>
+</body>
+</html>

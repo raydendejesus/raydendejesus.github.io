@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP Header Reference</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:920px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:14px 18px; margin-bottom:18px; }
+  input { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:10px; padding:11px; font-size:1rem; }
+  .item { padding:12px 14px; border:1px solid #1f2937; border-radius:12px; margin-bottom:10px; background:#0b1120; }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .name { font-family:ui-monospace,monospace; color:var(--accent); font-weight:600; }
+  .tag { font-size:.7rem; padding:2px 8px; border-radius:999px; background:#1f2937; color:#94a3b8; }
+  .desc { color:#cbd5e1; font-size:.9rem; margin:6px 0; }
+  .ex { font-family:ui-monospace,monospace; font-size:.82rem; color:#86efac; }
+  button { background:#1f2937; color:#e2e8f0; border:none; border-radius:8px; padding:5px 10px; font-size:.78rem; cursor:pointer; }
+  .count { color:#64748b; font-size:.8rem; margin:4px 0 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>HTTP Header Reference</h1>
+  <div class="panel"><input id="q" placeholder="Search headers..." oninput="render()"></div>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+</div>
+<script>
+  var headers = [
+    ['Accept','request','Media types the client can process.','Accept: text/html, application/json'],
+    ['Accept-Encoding','request','Content encodings the client supports.','Accept-Encoding: gzip, deflate, br'],
+    ['Accept-Language','request','Preferred natural languages.','Accept-Language: en-US, en;q=0.9'],
+    ['Authorization','request','Credentials for authenticating the client.','Authorization: Bearer eyJhbGci...'],
+    ['Cache-Control','both','Directives for caching mechanisms.','Cache-Control: no-cache, max-age=3600'],
+    ['Connection','both','Controls whether the connection stays open.','Connection: keep-alive'],
+    ['Content-Encoding','both','Encoding applied to the body.','Content-Encoding: gzip'],
+    ['Content-Length','both','Size of the body in bytes.','Content-Length: 348'],
+    ['Content-Type','both','Media type of the body.','Content-Type: application/json; charset=utf-8'],
+    ['Cookie','request','Stored cookies sent back to the server.','Cookie: session=abc123; theme=dark'],
+    ['Date','both','Date and time the message was sent.','Date: Tue, 21 Jun 2026 10:00:00 GMT'],
+    ['ETag','response','Version identifier for a resource.','ETag: "33a64df551"'],
+    ['Expires','response','Date/time after which the response is stale.','Expires: Wed, 22 Jun 2026 10:00:00 GMT'],
+    ['Host','request','Domain name and port of the server.','Host: example.com'],
+    ['If-Modified-Since','request','Return resource only if changed since date.','If-Modified-Since: Tue, 21 Jun 2026 09:00:00 GMT'],
+    ['If-None-Match','request','Conditional request based on ETag.','If-None-Match: "33a64df551"'],
+    ['Last-Modified','response','Last modification date of the resource.','Last-Modified: Tue, 21 Jun 2026 08:00:00 GMT'],
+    ['Location','response','URL to redirect to or location of new resource.','Location: https://example.com/new'],
+    ['Origin','request','Origin that caused the request (CORS).','Origin: https://example.com'],
+    ['Referer','request','Address of the previous web page.','Referer: https://example.com/page'],
+    ['Retry-After','response','How long to wait before retrying.','Retry-After: 120'],
+    ['Server','response','Software used by the origin server.','Server: nginx/1.25.0'],
+    ['Set-Cookie','response','Sends a cookie from server to client.','Set-Cookie: session=abc123; HttpOnly; Secure'],
+    ['Strict-Transport-Security','response','Enforces HTTPS for future requests.','Strict-Transport-Security: max-age=31536000'],
+    ['Transfer-Encoding','both','Form of encoding used for transfer.','Transfer-Encoding: chunked'],
+    ['User-Agent','request','Identifies the client software.','User-Agent: Mozilla/5.0 ...'],
+    ['Vary','response','Which request headers affect the response.','Vary: Accept-Encoding, User-Agent'],
+    ['WWW-Authenticate','response','Authentication method required.','WWW-Authenticate: Bearer realm="api"'],
+    ['X-Forwarded-For','request','Originating IP through proxies.','X-Forwarded-For: 203.0.113.1, 70.41.3.18'],
+    ['X-Frame-Options','response','Whether page can be framed (clickjacking).','X-Frame-Options: DENY'],
+    ['X-Content-Type-Options','response','Disables MIME sniffing.','X-Content-Type-Options: nosniff'],
+    ['Access-Control-Allow-Origin','response','Origins allowed to access the resource (CORS).','Access-Control-Allow-Origin: *'],
+    ['Content-Security-Policy','response','Controls allowed sources of content.',"Content-Security-Policy: default-src 'self'"],
+    ['Range','request','Request only part of a resource.','Range: bytes=0-1023'],
+    ['Content-Disposition','response','How content should be displayed/downloaded.','Content-Disposition: attachment; filename="f.pdf"']
+  ];
+  function esc(s){ return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function render() {
+    var q = document.getElementById('q').value.toLowerCase();
+    var list = document.getElementById('list'); list.innerHTML = '';
+    var n = 0;
+    headers.forEach(function(h){
+      if (q && h[0].toLowerCase().indexOf(q) < 0 && h[2].toLowerCase().indexOf(q) < 0) return;
+      n++;
+      var d = document.createElement('div'); d.className='item';
+      d.innerHTML = '<div class="head"><span class="name">'+esc(h[0])+'</span><span class="tag">'+h[1]+'</span></div>'+
+        '<div class="desc">'+esc(h[2])+'</div>'+
+        '<div class="head"><span class="ex">'+esc(h[3])+'</span><button>Copy</button></div>';
+      d.querySelector('button').onclick = function(){ navigator.clipboard.writeText(h[3]); };
+      list.appendChild(d);
+    });
+    document.getElementById('count').textContent = n + ' header' + (n===1?'':'s');
+  }
+  render();
+</script>
+</body>
+</html>

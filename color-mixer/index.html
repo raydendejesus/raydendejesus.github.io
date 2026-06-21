@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Mixer</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  .ends { display:flex; justify-content:space-between; gap:16px; }
+  .end { text-align:center; }
+  input[type=color] { width:80px; height:60px; border:none; border-radius:12px; background:none; cursor:pointer; }
+  input[type=range] { width:100%; accent-color:var(--accent); margin:24px 0; }
+  .result { text-align:center; }
+  .big { height:120px; border-radius:16px; border:1px solid #1f2937; }
+  .hex { font-family:monospace; font-size:1.4rem; margin:14px 0 8px; }
+  .sub { font-family:monospace; color:#94a3b8; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:8px 14px; cursor:pointer; margin:6px 4px 0; }
+  button:hover { border-color:var(--accent); }
+  .gradient { height:36px; border-radius:10px; margin-top:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Color Mixer</h1>
+  <div class="panel">
+    <div class="ends">
+      <div class="end"><input type="color" id="a" value="#38bdf8"><div class="sub" id="alabel">#38bdf8</div></div>
+      <div class="end" style="align-self:center;color:#94a3b8" id="ratioLabel">50% / 50%</div>
+      <div class="end"><input type="color" id="b" value="#f43f5e"><div class="sub" id="blabel">#f43f5e</div></div>
+    </div>
+    <input type="range" id="ratio" min="0" max="100" value="50">
+    <div class="gradient" id="grad"></div>
+  </div>
+  <div class="panel result">
+    <div class="big" id="swatch"></div>
+    <div class="hex" id="hex">--</div>
+    <div class="sub" id="rgb">--</div>
+    <div>
+      <button id="cHex">Copy HEX</button>
+      <button id="cRgb">Copy RGB</button>
+    </div>
+  </div>
+</div>
+<script>
+const a=document.getElementById('a'), b=document.getElementById('b'), ratio=document.getElementById('ratio');
+function hexToRgb(h){ h=h.replace('#',''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function toHex(r){ return '#'+r.map(v=>Math.round(v).toString(16).padStart(2,'0')).join(''); }
+let curHex='', curRgb='';
+function update(){
+  const ra=hexToRgb(a.value), rb=hexToRgb(b.value);
+  const t=ratio.value/100;
+  const mix=[ra[0]+(rb[0]-ra[0])*t, ra[1]+(rb[1]-ra[1])*t, ra[2]+(rb[2]-ra[2])*t];
+  curHex=toHex(mix); curRgb=`rgb(${Math.round(mix[0])}, ${Math.round(mix[1])}, ${Math.round(mix[2])})`;
+  document.getElementById('swatch').style.background=curHex;
+  document.getElementById('hex').textContent=curHex;
+  document.getElementById('rgb').textContent=curRgb;
+  document.getElementById('alabel').textContent=a.value;
+  document.getElementById('blabel').textContent=b.value;
+  document.getElementById('ratioLabel').textContent=`${100-ratio.value}% / ${ratio.value}%`;
+  document.getElementById('grad').style.background=`linear-gradient(90deg, ${a.value}, ${b.value})`;
+}
+[a,b,ratio].forEach(el=>el.addEventListener('input',update));
+function cb(id,get){ document.getElementById(id).onclick=function(){ navigator.clipboard.writeText(get()); const o=this.textContent; this.textContent='Copied!'; setTimeout(()=>this.textContent=o,900); }; }
+cb('cHex',()=>curHex); cb('cRgb',()=>curRgb);
+update();
+</script>
+</body>
+</html>

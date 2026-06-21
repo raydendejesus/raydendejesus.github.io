@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyframe Animation Maker</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 12px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, input[type=number] { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; width:100%; font-family:inherit; }
+  .stage { min-height: 240px; display: flex; align-items: center; justify-content: center; background:#0b1120; border-radius:10px; }
+  .box { width: 70px; height: 70px; border-radius: 12px; background: var(--accent); }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .82rem; margin-top: 14px; overflow-x:auto; white-space:pre-wrap; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  .kf { border:1px solid #1f2937; border-radius:8px; padding:10px; margin-top:8px; }
+  .kf-head { display:flex; justify-content:space-between; align-items:center; font-size:.85rem; color:#94a3b8; }
+  .kf-head button { margin:0; padding:2px 8px; font-size:.75rem; background:#7f1d1d; color:#fecaca; }
+  .checks { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .checks label { display:flex; align-items:center; gap:4px; margin:0; font-size:.78rem; }
+  .checks input { width:auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Keyframe Animation Maker</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Animation name</label>
+      <input type="text" id="name" value="myAnim" style="width:100%;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:8px;padding:8px;">
+      <label>Duration (s) <span class="val" id="durV">2</span></label>
+      <input type="range" id="dur" min="0.2" max="6" step="0.1" value="2">
+      <label>Easing</label>
+      <select id="easing">
+        <option>ease</option><option>linear</option><option>ease-in</option>
+        <option>ease-out</option><option>ease-in-out</option>
+        <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">bounce-ish</option>
+      </select>
+      <label>Iterations</label>
+      <select id="iter"><option>infinite</option><option>1</option><option>2</option><option>3</option></select>
+      <label>Direction</label>
+      <select id="dir"><option>normal</option><option>alternate</option><option>reverse</option><option>alternate-reverse</option></select>
+      <div id="frames"></div>
+      <button id="add">+ Add keyframe</button>
+    </div>
+    <div>
+      <div class="panel"><div class="stage"><div class="box" id="box"></div></div>
+        <button id="replay">Replay</button>
+      </div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<style id="dyn"></style>
+<script>
+  const $ = id => document.getElementById(id);
+  const PROPS = ['translateX','translateY','rotate','scale','opacity'];
+  let frames = [
+    { pct:0, props:{opacity:'1', scale:'1'} },
+    { pct:100, props:{translateX:'120', rotate:'360', scale:'1.4'} }
+  ];
+  function buildFrame(f, idx){
+    const div = document.createElement('div');
+    div.className='kf';
+    div.innerHTML = `<div class="kf-head"><span>Keyframe at <b>${f.pct}%</b></span>${frames.length>2?'<button data-del="'+idx+'">x</button>':''}</div>`;
+    const pctL = document.createElement('label'); pctL.textContent='Position %';
+    const pct = document.createElement('input'); pct.type='range'; pct.min=0; pct.max=100; pct.value=f.pct;
+    pct.addEventListener('input',()=>{ f.pct=+pct.value; render(); });
+    div.appendChild(pctL); div.appendChild(pct);
+    const checks = document.createElement('div'); checks.className='checks';
+    PROPS.forEach(p=>{
+      const lab=document.createElement('label');
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked = f.props[p]!==undefined;
+      const num=document.createElement('input'); num.type='number'; num.style.width='60px';
+      num.value = f.props[p]!==undefined ? f.props[p] : defaultFor(p);
+      num.disabled = !cb.checked;
+      cb.addEventListener('change',()=>{ if(cb.checked){f.props[p]=num.value; num.disabled=false;} else {delete f.props[p]; num.disabled=true;} render(); });
+      num.addEventListener('input',()=>{ f.props[p]=num.value; render(); });
+      lab.appendChild(cb); lab.append(p); lab.appendChild(num);
+      checks.appendChild(lab);
+    });
+    div.appendChild(checks);
+    return div;
+  }
+  function defaultFor(p){ return p==='opacity'?'1':p==='scale'?'1':p==='rotate'?'90':'50'; }
+  function propToCss(p,v){
+    if(p==='opacity') return `opacity: ${v};`;
+    if(p==='rotate') return `transform-rotate:${v}`; // placeholder, handled in combine
+    return '';
+  }
+  function frameCss(f){
+    const transforms=[]; let extra='';
+    if(f.props.translateX!==undefined) transforms.push(`translateX(${f.props.translateX}px)`);
+    if(f.props.translateY!==undefined) transforms.push(`translateY(${f.props.translateY}px)`);
+    if(f.props.rotate!==undefined) transforms.push(`rotate(${f.props.rotate}deg)`);
+    if(f.props.scale!==undefined) transforms.push(`scale(${f.props.scale})`);
+    let lines='';
+    if(transforms.length) lines += `\n    transform: ${transforms.join(' ')};`;
+    if(f.props.opacity!==undefined) lines += `\n    opacity: ${f.props.opacity};`;
+    return `  ${f.pct}% {${lines}\n  }`;
+  }
+  function render(){
+    $('durV').textContent=$('dur').value;
+    const fc=$('frames'); fc.innerHTML='';
+    const sorted=[...frames].sort((a,b)=>a.pct-b.pct);
+    frames.forEach((f,i)=>fc.appendChild(buildFrame(f,i)));
+    const name=$('name').value||'myAnim';
+    const kf = `@keyframes ${name} {\n${sorted.map(frameCss).join('\n')}\n}`;
+    const anim = `animation: ${name} ${$('dur').value}s ${$('easing').value} ${$('iter').value} ${$('dir').value};`;
+    $('css').textContent = `${kf}\n\n.element {\n  ${anim}\n}`;
+    $('dyn').textContent = `${kf}\n#box { ${anim} }`;
+  }
+  $('frames').addEventListener('click',e=>{
+    const d=e.target.dataset.del;
+    if(d!==undefined){ frames.splice(+d,1); render(); }
+  });
+  $('add').addEventListener('click',()=>{ frames.push({pct:50,props:{scale:'1.2'}}); render(); });
+  ['dur','easing','iter','dir','name'].forEach(i=>$(i).addEventListener('input',render));
+  $('replay').addEventListener('click',()=>{ const b=$('box'); b.style.animation='none'; void b.offsetWidth; render(); });
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

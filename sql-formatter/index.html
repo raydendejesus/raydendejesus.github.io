@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Formatter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>SQL Formatter</h1>
+<p class="sub">Beautify SQL with uppercased keywords and indentation.</p>
+<div class="toolbar">
+  <button id="format">Format</button>
+  <button id="copy" class="ghost">Copy</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col"><div class="colhead">SQL input</div>
+    <textarea id="input" spellcheck="false" placeholder="select id, name from users where age > 18 order by name"></textarea></div>
+  <div class="col"><div class="colhead">Formatted</div><pre id="output"></pre></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+const KEYWORDS=["SELECT","FROM","WHERE","AND","OR","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL JOIN","CROSS JOIN","JOIN","ON","GROUP BY","ORDER BY","HAVING","LIMIT","OFFSET","INSERT INTO","VALUES","UPDATE","SET","DELETE FROM","DELETE","CREATE TABLE","ALTER TABLE","DROP TABLE","UNION ALL","UNION","AS","IN","NOT","NULL","IS","LIKE","BETWEEN","DISTINCT","COUNT","CASE","WHEN","THEN","ELSE","END","ASC","DESC","INTO"];
+// newline-before keywords
+const NEWLINE=["SELECT","FROM","WHERE","GROUP BY","ORDER BY","HAVING","LIMIT","OFFSET","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL JOIN","CROSS JOIN","JOIN","UNION ALL","UNION","VALUES","SET","INSERT INTO","UPDATE","DELETE FROM"];
+const INDENT_AFTER=new Set(["AND","OR","ON"]);
+function tokenize(sql){
+  const tokens=[]; let i=0;
+  while(i<sql.length){
+    const c=sql[i];
+    if(/\s/.test(c)){i++;continue;}
+    if(c==="'"||c==='"'){ let q=c,s=c;i++; while(i<sql.length){s+=sql[i]; if(sql[i]===q && sql[i-1]!=='\\'){i++;break;} i++;} tokens.push({t:'str',v:s}); continue; }
+    if(c==='-'&&sql[i+1]==='-'){ let s='';while(i<sql.length&&sql[i]!=='\n'){s+=sql[i++];} tokens.push({t:'cmt',v:s}); continue; }
+    if(/[(),;]/.test(c)){tokens.push({t:'punc',v:c});i++;continue;}
+    let s=''; while(i<sql.length&&!/[\s(),;'"]/.test(sql[i])){s+=sql[i++];}
+    tokens.push({t:'word',v:s});
+  }
+  return tokens;
+}
+function matchKw(tokens,idx){
+  // try two-word then one-word
+  for(const kw of KEYWORDS){
+    const parts=kw.split(' ');
+    if(parts.length===2){
+      if(tokens[idx]&&tokens[idx+1]&&tokens[idx].t==='word'&&tokens[idx+1].t==='word'&&
+        tokens[idx].v.toUpperCase()===parts[0]&&tokens[idx+1].v.toUpperCase()===parts[1]) return {kw,len:2};
+    }
+  }
+  for(const kw of KEYWORDS){
+    if(kw.indexOf(' ')<0 && tokens[idx].t==='word' && tokens[idx].v.toUpperCase()===kw) return {kw,len:1};
+  }
+  return null;
+}
+function format(){
+  const sql=$('input').value;
+  if(!sql.trim()){setStatus('Nothing to format','err');$('output').textContent='';return;}
+  try{
+    const tokens=tokenize(sql);
+    let out=''; let indent=1; let i=0; let lineStarted=false;
+    const pad=()=>'  '.repeat(Math.max(indent,0));
+    while(i<tokens.length){
+      const tk=tokens[i];
+      if(tk.t==='cmt'){ out+=(out&&!out.endsWith('\n')?' ':'')+tk.v+'\n'+pad(); lineStarted=true; i++; continue; }
+      if(tk.t==='punc'){
+        if(tk.v==='('){ out+='('; i++; lineStarted=true; continue; }
+        if(tk.v===')'){ out=out.replace(/\s+$/,'')+')'; i++; continue; }
+        if(tk.v===','){ out=out.replace(/\s+$/,'')+',\n'+pad(); i++; lineStarted=true; continue; }
+        if(tk.v===';'){ out=out.replace(/\s+$/,'')+';\n'; indent=1; i++; lineStarted=false; continue; }
+      }
+      const m=matchKw(tokens,i);
+      if(m){
+        const upper=m.kw;
+        if(NEWLINE.includes(upper)){
+          out=out.replace(/\s+$/,'');
+          if(out&&!out.endsWith('\n')) out+='\n';
+          out+=upper+' '; i+=m.len; lineStarted=true; continue;
+        }
+        if(INDENT_AFTER.has(upper)){
+          out=out.replace(/\s+$/,'');
+          if(out&&!out.endsWith('\n')) out+='\n';
+          out+='  '+upper+' '; i+=m.len; continue;
+        }
+        out+=upper+' '; i+=m.len; continue;
+      }
+      out+=tk.v+' '; i++;
+    }
+    out=out.split('\n').map(l=>l.replace(/\s+$/,'')).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+    $('output').textContent=out;
+    setStatus('Formatted','ok');
+  }catch(e){setStatus('Error: '+e.message,'err');}
+}
+$('format').onclick=format;
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared');};
+$('copy').onclick=async()=>{const t=$('output').textContent;if(!t){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(t);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+$('input').addEventListener('input',()=>{if($('input').value.trim())format();});
+</script>
+</body>
+</html>

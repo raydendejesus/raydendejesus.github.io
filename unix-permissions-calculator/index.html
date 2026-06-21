@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unix Permissions Calculator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:680px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:10px; text-align:center; }
+  th { color:#94a3b8; font-weight:500; border-bottom:1px solid #1f2937; }
+  td.who { text-align:left; color:var(--accent); font-weight:600; }
+  label.chk { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+  input[type=checkbox]{ width:18px; height:18px; accent-color:var(--accent); }
+  .big { font-family:ui-monospace,monospace; font-size:2rem; color:#86efac; letter-spacing:3px; }
+  .sym { font-family:ui-monospace,monospace; font-size:1.4rem; color:var(--accent); }
+  .octin { font-family:ui-monospace,monospace; font-size:1.2rem; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px 12px; width:120px; text-align:center; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .cmd { font-family:ui-monospace,monospace; color:#cbd5e1; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Unix Permissions Calculator</h1>
+  <div class="panel">
+    <table>
+      <tr><th></th><th>Read (4)</th><th>Write (2)</th><th>Execute (1)</th></tr>
+      <tr><td class="who">User</td>
+        <td><input type="checkbox" data-w="u" data-b="4" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="u" data-b="2" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="u" data-b="1" onchange="upd()"></td></tr>
+      <tr><td class="who">Group</td>
+        <td><input type="checkbox" data-w="g" data-b="4" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="g" data-b="2" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="g" data-b="1" onchange="upd()"></td></tr>
+      <tr><td class="who">Other</td>
+        <td><input type="checkbox" data-w="o" data-b="4" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="o" data-b="2" onchange="upd()"></td>
+        <td><input type="checkbox" data-w="o" data-b="1" onchange="upd()"></td></tr>
+    </table>
+  </div>
+  <div class="panel">
+    <div class="row">
+      <div>
+        <div class="big" id="octal">000</div>
+        <div class="sym" id="symbolic">---------</div>
+      </div>
+      <div>
+        <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:6px">Set octal</label>
+        <input class="octin" id="octin" value="000" oninput="fromOctal()" maxlength="4">
+      </div>
+    </div>
+    <div class="cmd" id="cmd"></div>
+    <div class="row" style="margin-top:12px"><button onclick="copyCmd()">Copy chmod</button></div>
+  </div>
+</div>
+<script>
+  function boxes(){ return document.querySelectorAll('input[type=checkbox]'); }
+  function upd() {
+    var v = {u:0,g:0,o:0};
+    boxes().forEach(function(b){ if(b.checked) v[b.dataset.w] += parseInt(b.dataset.b); });
+    var oct = '' + v.u + v.g + v.o;
+    document.getElementById('octal').textContent = oct;
+    document.getElementById('octin').value = oct;
+    render(v.u, v.g, v.o);
+  }
+  function trip(n){ return (n&4?'r':'-')+(n&2?'w':'-')+(n&1?'x':'-'); }
+  function render(u,g,o) {
+    var sym = trip(u)+trip(g)+trip(o);
+    document.getElementById('symbolic').textContent = sym;
+    var oct = ''+u+g+o;
+    document.getElementById('cmd').textContent = 'chmod ' + oct + '  (or  chmod ' + symbolicChmod(u,g,o) + ' )';
+  }
+  function symbolicChmod(u,g,o) {
+    function s(who,n){ var p=(n&4?'r':'')+(n&2?'w':'')+(n&1?'x':''); return p?who+'='+p:who+'='; }
+    return s('u',u)+','+s('g',g)+','+s('o',o);
+  }
+  function fromOctal() {
+    var val = document.getElementById('octin').value.replace(/[^0-7]/g,'').slice(-3).padStart(3,'0');
+    var u=+val[0], g=+val[1], o=+val[2];
+    boxes().forEach(function(b){
+      var n = b.dataset.w==='u'?u:b.dataset.w==='g'?g:o;
+      b.checked = (n & parseInt(b.dataset.b)) !== 0;
+    });
+    document.getElementById('octal').textContent = ''+u+g+o;
+    render(u,g,o);
+  }
+  function copyCmd(){
+    var oct = document.getElementById('octal').textContent;
+    navigator.clipboard.writeText('chmod ' + oct + ' filename');
+  }
+  upd();
+</script>
+</body>
+</html>

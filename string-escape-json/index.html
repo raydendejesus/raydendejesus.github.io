@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON String Escape</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  p.note{color:#94a3b8;font-size:.9rem;margin-top:0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  textarea{width:100%;min-height:120px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:.95rem;resize:vertical;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;}
+  button{background:var(--accent);color:#04222e;border:none;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:.95rem;}
+  button.alt{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .err{color:#f87171;min-height:1.2em;margin-top:8px;font-size:.9rem;}
+  label{display:block;margin-bottom:6px;font-size:.85rem;color:#94a3b8;}
+  .opt{font-size:.85rem;color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>JSON String Escape / Unescape</h1>
+  <p class="note">Escape a raw string into a JSON string literal, or unescape a JSON literal back to raw text.</p>
+  <div class="panel">
+    <label>Raw string</label>
+    <textarea id="raw" placeholder='He said "hi"&#10;next line'></textarea>
+    <div class="row">
+      <button id="esc">Escape to JSON ↓</button>
+      <button class="alt" id="copyRaw">Copy</button>
+      <label class="opt"><input type="checkbox" id="quotes"> include surrounding quotes</label>
+    </div>
+  </div>
+  <div class="panel">
+    <label>JSON string literal</label>
+    <textarea id="json" placeholder='"He said \"hi\"\nnext line"'></textarea>
+    <div class="row">
+      <button id="unesc">↑ Unescape from JSON</button>
+      <button class="alt" id="copyJson">Copy</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+  const raw=document.getElementById('raw');
+  const json=document.getElementById('json');
+  const err=document.getElementById('err');
+  const quotes=document.getElementById('quotes');
+  function setErr(m){err.textContent=m||'';}
+  function escape(){
+    setErr('');
+    let s=JSON.stringify(raw.value); // includes surrounding quotes
+    if(!quotes.checked)s=s.slice(1,-1);
+    json.value=s;
+  }
+  function unescape(){
+    setErr('');
+    let s=json.value.trim();
+    try{
+      if(!(s.startsWith('"')&&s.endsWith('"')&&s.length>=2))s='"'+s+'"';
+      const parsed=JSON.parse(s);
+      if(typeof parsed!=='string')throw new Error('not a JSON string');
+      raw.value=parsed;
+    }catch(e){setErr('Could not parse JSON string: '+e.message);}
+  }
+  function copy(el,btn){
+    navigator.clipboard.writeText(el.value).then(()=>{
+      const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1200);
+    });
+  }
+  document.getElementById('esc').onclick=escape;
+  document.getElementById('unesc').onclick=unescape;
+  quotes.addEventListener('change',()=>{if(json.value)escape();});
+  document.getElementById('copyRaw').onclick=e=>copy(raw,e.target);
+  document.getElementById('copyJson').onclick=e=>copy(json,e.target);
+</script>
+</body>
+</html>

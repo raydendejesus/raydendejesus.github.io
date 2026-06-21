@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIME Type Lookup</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-weight:600; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  input[type=text] { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #1f2937; font-size:14px; }
+  th { color:#94a3b8; font-weight:600; }
+  td.mono { font-family:ui-monospace,monospace; }
+  .ext { color:var(--accent); }
+  button.copy { background:#1f2937; color:#e2e8f0; border:1px solid #334155; border-radius:8px; padding:4px 10px; cursor:pointer; font-size:12px; }
+  button.copy:hover { border-color:var(--accent); }
+  .count { color:#94a3b8; font-size:13px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>MIME Type Lookup</h1>
+  <div class="panel">
+    <input id="q" type="text" placeholder="Search by extension (png) or type (image, json)…" autofocus>
+    <div class="count" id="count"></div>
+    <table>
+      <thead><tr><th>Extension</th><th>MIME Type</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+const DATA = [
+  ["aac","audio/aac"],["abw","application/x-abiword"],["arc","application/x-freearc"],
+  ["avi","video/x-msvideo"],["avif","image/avif"],["azw","application/vnd.amazon.ebook"],
+  ["bin","application/octet-stream"],["bmp","image/bmp"],["bz","application/x-bzip"],
+  ["bz2","application/x-bzip2"],["cda","application/x-cdf"],["csh","application/x-csh"],
+  ["css","text/css"],["csv","text/csv"],["doc","application/msword"],
+  ["docx","application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ["eot","application/vnd.ms-fontobject"],["epub","application/epub+zip"],["gz","application/gzip"],
+  ["gif","image/gif"],["htm","text/html"],["html","text/html"],["ico","image/vnd.microsoft.icon"],
+  ["ics","text/calendar"],["jar","application/java-archive"],["jpeg","image/jpeg"],["jpg","image/jpeg"],
+  ["js","text/javascript"],["json","application/json"],["jsonld","application/ld+json"],
+  ["mid","audio/midi"],["midi","audio/midi"],["mjs","text/javascript"],["mp3","audio/mpeg"],
+  ["mp4","video/mp4"],["mpeg","video/mpeg"],["mpkg","application/vnd.apple.installer+xml"],
+  ["odp","application/vnd.oasis.opendocument.presentation"],
+  ["ods","application/vnd.oasis.opendocument.spreadsheet"],
+  ["odt","application/vnd.oasis.opendocument.text"],["oga","audio/ogg"],["ogv","video/ogg"],
+  ["ogx","application/ogg"],["opus","audio/opus"],["otf","font/otf"],["png","image/png"],
+  ["pdf","application/pdf"],["php","application/x-httpd-php"],
+  ["ppt","application/vnd.ms-powerpoint"],
+  ["pptx","application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  ["rar","application/vnd.rar"],["rtf","application/rtf"],["sh","application/x-sh"],
+  ["svg","image/svg+xml"],["tar","application/x-tar"],["tif","image/tiff"],["tiff","image/tiff"],
+  ["ts","video/mp2t"],["ttf","font/ttf"],["txt","text/plain"],["vsd","application/vnd.visio"],
+  ["wav","audio/wav"],["weba","audio/webm"],["webm","video/webm"],["webp","image/webp"],
+  ["woff","font/woff"],["woff2","font/woff2"],["xhtml","application/xhtml+xml"],
+  ["xls","application/vnd.ms-excel"],
+  ["xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  ["xml","application/xml"],["xul","application/vnd.mozilla.xul+xml"],
+  ["zip","application/zip"],["3gp","video/3gpp"],["3g2","video/3gpp2"],["7z","application/x-7z-compressed"],
+  ["wasm","application/wasm"],["yaml","application/yaml"],["yml","application/yaml"],
+  ["md","text/markdown"],["toml","application/toml"],["apng","image/apng"]
+];
+const rows=document.getElementById('rows'), q=document.getElementById('q'), count=document.getElementById('count');
+function copy(t){navigator.clipboard.writeText(t);}
+function render(list){
+  rows.innerHTML='';
+  for(const [ext,mime] of list){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono ext">.${ext}</td><td class="mono">${mime}</td><td><button class="copy">copy</button></td>`;
+    tr.querySelector('button').onclick=()=>{copy(mime);};
+    rows.appendChild(tr);
+  }
+  count.textContent=`${list.length} of ${DATA.length} types`;
+}
+function filter(){
+  const s=q.value.trim().toLowerCase().replace(/^\./,'');
+  if(!s){render(DATA);return;}
+  render(DATA.filter(([e,m])=>e.includes(s)||m.toLowerCase().includes(s)));
+}
+q.addEventListener('input',filter);
+render(DATA);
+</script>
+</body>
+</html>

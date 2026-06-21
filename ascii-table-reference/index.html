@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Table Reference</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  input[type=text]{width:100%;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-size:.95rem;}
+  table{width:100%;border-collapse:collapse;font-family:ui-monospace,monospace;font-size:.9rem;}
+  th,td{padding:7px 10px;text-align:left;border-bottom:1px solid #1f2937;}
+  th{color:#94a3b8;font-weight:600;position:sticky;top:0;background:#111827;}
+  tr:hover{background:#0b1120;cursor:pointer;}
+  .char{color:var(--accent);}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2937;border:1px solid #38bdf8;color:#e2e8f0;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .note{color:#94a3b8;font-size:.82rem;margin-top:8px;}
+  .tablewrap{max-height:70vh;overflow:auto;border-radius:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>ASCII Table Reference</h1>
+  <div class="panel">
+    <input id="search" type="text" placeholder="Search by dec, hex, oct, char, or name (e.g. 65, 0x41, A, space)...">
+    <div class="note">Click any row to copy the character. 0–127 shown.</div>
+  </div>
+  <div class="panel">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Dec</th><th>Hex</th><th>Oct</th><th>Char</th><th>Name</th></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  const NAMES=["NUL","SOH","STX","ETX","EOT","ENQ","ACK","BEL","BS","HT (tab)","LF (newline)","VT","FF","CR","SO","SI","DLE","DC1","DC2","DC3","DC4","NAK","SYN","ETB","CAN","EM","SUB","ESC","FS","GS","RS","US","Space","Exclamation","Double quote","Hash","Dollar","Percent","Ampersand","Single quote","Left paren","Right paren","Asterisk","Plus","Comma","Hyphen","Period","Slash","Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Colon","Semicolon","Less than","Equals","Greater than","Question","At sign"];
+  const rows=[];
+  for(let i=0;i<128;i++){
+    let name;
+    if(i<NAMES.length)name=NAMES[i];
+    else if(i>=65&&i<=90)name="Uppercase "+String.fromCharCode(i);
+    else if(i>=97&&i<=122)name="Lowercase "+String.fromCharCode(i);
+    else if(i===127)name="DEL";
+    else name="Symbol "+String.fromCharCode(i);
+    let disp;
+    if(i<32||i===127)disp="—";
+    else if(i===32)disp="(space)";
+    else disp=String.fromCharCode(i);
+    rows.push({dec:i,hex:"0x"+i.toString(16).toUpperCase().padStart(2,'0'),oct:"0"+i.toString(8),char:i<32||i===127?"":String.fromCharCode(i),disp,name});
+  }
+  const body=document.getElementById('body');
+  const toast=document.getElementById('toast');
+  function render(filter){
+    body.innerHTML='';
+    const f=(filter||'').trim().toLowerCase();
+    for(const r of rows){
+      if(f){
+        const hay=[String(r.dec),r.hex.toLowerCase(),r.hex.slice(2).toLowerCase(),r.oct,r.char.toLowerCase(),r.name.toLowerCase()].join(' ');
+        if(!hay.includes(f))continue;
+      }
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${r.dec}</td><td>${r.hex}</td><td>${r.oct}</td><td class="char">${r.disp}</td><td>${r.name}</td>`;
+      tr.onclick=()=>{
+        const v=r.char||String.fromCharCode(r.dec);
+        navigator.clipboard.writeText(v).then(()=>{
+          toast.textContent='Copied char '+r.dec;toast.classList.add('show');
+          setTimeout(()=>toast.classList.remove('show'),1100);
+        });
+      };
+      body.appendChild(tr);
+    }
+  }
+  document.getElementById('search').addEventListener('input',e=>render(e.target.value));
+  render('');
+</script>
+</body>
+</html>

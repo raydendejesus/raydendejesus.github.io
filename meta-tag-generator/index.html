@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Tag Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:1000px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  @media(max-width:760px){ .wrap{ grid-template-columns:1fr; } }
+  .head { grid-column:1/-1; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; }
+  label { display:block; font-size:13px; color:#94a3b8; margin:12px 0 4px; }
+  label:first-child { margin-top:0; }
+  input, textarea { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:9px 11px; font-size:14px; font-family:inherit; }
+  textarea { resize:vertical; min-height:64px; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:8px; padding:12px; overflow:auto; font-size:12px; font-family:ui-monospace,monospace; white-space:pre-wrap; word-break:break-word; max-height:460px; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; margin-top:12px; }
+  button:active { transform:translateY(1px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <a class="back" href="../">&larr; back</a>
+    <h1>Meta Tag Generator</h1>
+    <p class="sub">Fill in the fields to generate HTML meta + Open Graph tags.</p>
+  </div>
+  <div class="panel">
+    <label>Page Title</label>
+    <input id="title" placeholder="My Awesome Page">
+    <label>Description</label>
+    <textarea id="desc" placeholder="A short description of the page."></textarea>
+    <label>Keywords (comma separated)</label>
+    <input id="keywords" placeholder="web, dev, tools">
+    <label>Author</label>
+    <input id="author" placeholder="Jane Doe">
+    <label>Canonical / OG URL</label>
+    <input id="url" placeholder="https://example.com/page">
+    <label>OG Image URL</label>
+    <input id="image" placeholder="https://example.com/img.png">
+    <label>OG Type</label>
+    <input id="type" placeholder="website" value="website">
+    <label>Twitter Card</label>
+    <input id="twitter" placeholder="summary_large_image" value="summary_large_image">
+  </div>
+  <div class="panel">
+    <pre id="output"></pre>
+    <button id="copyBtn">Copy</button>
+  </div>
+</div>
+<script>
+const ids = ['title','desc','keywords','author','url','image','type','twitter'];
+const out = document.getElementById('output');
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function render(){
+  const v = {}; ids.forEach(i=>v[i]=document.getElementById(i).value.trim());
+  const lines = [];
+  if(v.title) lines.push(`<title>${esc(v.title)}</title>`);
+  if(v.desc) lines.push(`<meta name="description" content="${esc(v.desc)}">`);
+  if(v.keywords) lines.push(`<meta name="keywords" content="${esc(v.keywords)}">`);
+  if(v.author) lines.push(`<meta name="author" content="${esc(v.author)}">`);
+  if(v.url) lines.push(`<link rel="canonical" href="${esc(v.url)}">`);
+  lines.push('');
+  lines.push('<!-- Open Graph -->');
+  if(v.title) lines.push(`<meta property="og:title" content="${esc(v.title)}">`);
+  if(v.desc) lines.push(`<meta property="og:description" content="${esc(v.desc)}">`);
+  if(v.type) lines.push(`<meta property="og:type" content="${esc(v.type)}">`);
+  if(v.url) lines.push(`<meta property="og:url" content="${esc(v.url)}">`);
+  if(v.image) lines.push(`<meta property="og:image" content="${esc(v.image)}">`);
+  lines.push('');
+  lines.push('<!-- Twitter -->');
+  if(v.twitter) lines.push(`<meta name="twitter:card" content="${esc(v.twitter)}">`);
+  if(v.title) lines.push(`<meta name="twitter:title" content="${esc(v.title)}">`);
+  if(v.desc) lines.push(`<meta name="twitter:description" content="${esc(v.desc)}">`);
+  if(v.image) lines.push(`<meta name="twitter:image" content="${esc(v.image)}">`);
+  out.textContent = lines.join('\n');
+}
+ids.forEach(i=>document.getElementById(i).addEventListener('input',render));
+document.getElementById('copyBtn').addEventListener('click', async e=>{
+  try{ await navigator.clipboard.writeText(out.textContent); }catch{ const r=document.createRange(); r.selectNode(out); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); }
+  const b=e.target,t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);
+});
+render();
+</script>
+</body>
+</html>

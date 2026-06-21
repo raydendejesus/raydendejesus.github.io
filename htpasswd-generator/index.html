@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>htpasswd Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:680px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:#94a3b8; margin:12px 0 5px; }
+  label:first-child { margin-top:0; }
+  input[type=text],input[type=password] { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:10px 12px; font-size:15px; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; margin-top:14px; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  button:active { transform:translateY(1px); }
+  .out { font-family:ui-monospace,monospace; font-size:14px; color:var(--accent); word-break:break-all; background:#0b1120; border:1px solid #1f2937; border-radius:8px; padding:14px; min-height:20px; }
+  .note { font-size:12px; color:#64748b; margin-top:10px; }
+  .btns { display:flex; gap:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; back</a>
+  <h1>htpasswd Generator</h1>
+  <p class="sub">Generate an Apache .htpasswd line (SHA-1, the <code>{SHA}</code> scheme).</p>
+  <div class="panel">
+    <label>Username</label>
+    <input type="text" id="user" placeholder="admin" autocomplete="off">
+    <label>Password</label>
+    <input type="password" id="pass" placeholder="secret" autocomplete="off">
+    <label><input type="checkbox" id="show"> show password</label>
+    <div class="btns"><button id="genBtn">Generate</button></div>
+  </div>
+  <div class="panel">
+    <label>.htpasswd line</label>
+    <div class="out" id="out"></div>
+    <div class="btns"><button id="copyBtn">Copy</button></div>
+    <div class="note">SHA-1 is the <code>{SHA}</code> Apache scheme (htpasswd -s). Computed locally via SubtleCrypto; nothing leaves your machine.</div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+$('show').addEventListener('change',e=>{ $('pass').type=e.target.checked?'text':'password'; });
+function b64(bytes){ let s=''; for(const b of bytes) s+=String.fromCharCode(b); return btoa(s); }
+async function generate(){
+  const user=$('user').value.trim();
+  const pass=$('pass').value;
+  if(!user){ $('out').textContent='Enter a username.'; return; }
+  const buf=await crypto.subtle.digest('SHA-1', new TextEncoder().encode(pass));
+  const hash=b64(new Uint8Array(buf));
+  $('out').textContent=`${user}:{SHA}${hash}`;
+}
+$('genBtn').addEventListener('click',generate);
+$('pass').addEventListener('keydown',e=>{ if(e.key==='Enter') generate(); });
+$('copyBtn').addEventListener('click', async e=>{
+  if(!$('out').textContent || $('out').textContent.startsWith('Enter')) return;
+  try{ await navigator.clipboard.writeText($('out').textContent); }catch{}
+  const b=e.target,t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);
+});
+</script>
+</body>
+</html>

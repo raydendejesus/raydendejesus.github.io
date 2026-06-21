@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAML Validator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  textarea { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937;
+    border-radius:10px; padding:10px; font-family:ui-monospace, monospace; font-size:.9rem; min-height:200px; resize:vertical; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media(max-width:760px){ .grid{ grid-template-columns:1fr; } }
+  .status { padding:10px 14px; border-radius:10px; font-weight:600; margin-bottom:12px; }
+  .ok { background:#064e3b; color:#86efac; }
+  .bad { background:#450a0a; color:#fca5a5; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:10px; padding:12px; overflow:auto; font-size:.85rem; font-family:ui-monospace,monospace; margin:0; }
+  .row { display:flex; gap:8px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>YAML Validator</h1>
+  <div class="grid">
+    <div class="panel">
+      <label>YAML input</label>
+      <textarea id="in" oninput="run()">name: Rayden
+project:
+  title: Dread AI
+  active: true
+  gpus:
+    - 2070 Super
+    - 3090
+settings:
+  ram_gb: 64
+  notes: "dual GPU build"</textarea>
+    </div>
+    <div class="panel">
+      <div class="status" id="status"></div>
+      <label>Parsed as JSON</label>
+      <pre id="out"></pre>
+      <div class="row"><button onclick="copyOut()">Copy JSON</button></div>
+    </div>
+  </div>
+</div>
+<script>
+  function YamlError(msg, line){ this.message = msg; this.line = line; }
+
+  function stripComment(s) {
+    var out = '', inS = false, inD = false;
+    for (var i=0;i<s.length;i++) {
+      var ch = s[i];
+      if (ch === "'" && !inD) inS = !inS;
+      else if (ch === '"' && !inS) inD = !inD;
+      else if (ch === '#' && !inS && !inD) {
+        if (i === 0 || s[i-1] === ' ' || s[i-1] === '\t') break;
+      }
+      out += ch;
+    }
+    return out;
+  }
+
+  function parseScalar(v, lineNo) {
+    v = v.trim();
+    if (v === '' || v === '~' || v === 'null' || v === 'Null' || v === 'NULL') return null;
+    if (v === 'true' || v === 'True' || v === 'TRUE') return true;
+    if (v === 'false' || v === 'False' || v === 'FALSE') return false;
+    if (v[0] === '"' || v[0] === "'") {
+      var q = v[0];
+      if (v.length < 2 || v[v.length-1] !== q) throw new YamlError('Unterminated quoted string', lineNo);
+      var inner = v.slice(1, -1);
+      if (q === '"') inner = inner.replace(/\\n/g,'\n').replace(/\\t/g,'\t').replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+      return inner;
+    }
+    if (/^-?\d+$/.test(v)) return parseInt(v,10);
+    if (/^-?\d*\.\d+$/.test(v)) return parseFloat(v);
+    if (v[0] === '[' || v[0] === '{') {
+      try { return JSON.parse(v.replace(/'/g,'"')); } catch(e){ return v; }
+    }
+    return v;
+  }
+
+  function indentOf(line) { var m = line.match(/^( *)/); return m[1].length; }
+
+  function parseYaml(text) {
+    var raw = text.replace(/\r\n/g,'\n').split('\n');
+    var lines = [];
+    for (var i=0;i<raw.length;i++) {
+      if (raw[i].indexOf('\t') >= 0 && /^\t/.test(raw[i].replace(/^ */,''))) {
+        // tabs for indentation are invalid
+      }
+      var content = stripComment(raw[i]);
+      if (content.trim() === '') continue;
+      if (/^\t/.test(content)) throw new YamlError('Tabs are not allowed for indentation', i+1);
+      lines.push({ indent: indentOf(content), text: content.trim(), no: i+1 });
+    }
+    if (!lines.length) return null;
+    var idx = { i: 0 };
+    var result = parseBlock(lines, idx, lines[0].indent);
+    return result;
+  }
+
+  function parseBlock(lines, idx, indent) {
+    var first = lines[idx.i];
+    if (first.text[0] === '-') return parseSeq(lines, idx, indent);
+    return parseMap(lines, idx, indent);
+  }
+
+  function parseMap(lines, idx, indent) {
+    var obj = {};
+    while (idx.i < lines.length) {
+      var line = lines[idx.i];
+      if (line.indent < indent) break;
+      if (line.indent > indent) throw new YamlError('Unexpected indentation', line.no);
+      if (line.text[0] === '-') throw new YamlError('Expected mapping key but found list item', line.no);
+      var t = line.text;
+      var ci = findColon(t);
+      if (ci < 0) throw new YamlError('Expected "key: value" mapping', line.no);
+      var key = t.slice(0, ci).trim();
+      var val = t.slice(ci+1).trim();
+      if (key === '') throw new YamlError('Empty mapping key', line.no);
+      if (obj.hasOwnProperty(key)) throw new YamlError('Duplicate key "'+key+'"', line.no);
+      idx.i++;
+      if (val === '') {
+        if (idx.i < lines.length && lines[idx.i].indent > indent) {
+          obj[key] = parseBlock(lines, idx, lines[idx.i].indent);
+        } else { obj[key] = null; }
+      } else {
+        obj[key] = parseScalar(val, line.no);
+      }
+    }
+    return obj;
+  }
+
+  function parseSeq(lines, idx, indent) {
+    var arr = [];
+    while (idx.i < lines.length) {
+      var line = lines[idx.i];
+      if (line.indent < indent) break;
+      if (line.indent > indent) throw new YamlError('Unexpected indentation in list', line.no);
+      if (line.text[0] !== '-') break;
+      var rest = line.text.slice(1).trim();
+      if (rest === '') {
+        idx.i++;
+        if (idx.i < lines.length && lines[idx.i].indent > indent) arr.push(parseBlock(lines, idx, lines[idx.i].indent));
+        else arr.push(null);
+      } else if (findColon(rest) >= 0) {
+        // inline map starting in list item: treat the dash position as map indent
+        var mapIndent = indent + (line.text.length - line.text.slice(1).trimStart().length);
+        lines[idx.i] = { indent: mapIndent, text: rest, no: line.no };
+        arr.push(parseMap(lines, idx, mapIndent));
+      } else {
+        arr.push(parseScalar(rest, line.no));
+        idx.i++;
+      }
+    }
+    return arr;
+  }
+
+  function findColon(t) {
+    var inS=false,inD=false;
+    for (var i=0;i<t.length;i++){
+      var c=t[i];
+      if (c==="'"&&!inD) inS=!inS;
+      else if (c==='"'&&!inS) inD=!inD;
+      else if (c===':'&&!inS&&!inD){
+        if (i===t.length-1 || t[i+1]===' ') return i;
+      }
+    }
+    return -1;
+  }
+
+  function run() {
+    var st = document.getElementById('status');
+    var out = document.getElementById('out');
+    try {
+      var data = parseYaml(document.getElementById('in').value);
+      st.className = 'status ok'; st.textContent = '✓ Valid YAML';
+      out.textContent = JSON.stringify(data, null, 2);
+    } catch(e) {
+      st.className = 'status bad';
+      st.textContent = '✗ ' + (e.message || 'Parse error') + (e.line ? '  (line ' + e.line + ')' : '');
+      out.textContent = '';
+    }
+  }
+  function copyOut(){ navigator.clipboard.writeText(document.getElementById('out').textContent); }
+  run();
+</script>
+</body>
+</html>

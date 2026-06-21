@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Grid Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .grid-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 14px 0 6px; color: #94a3b8; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=number], input[type=text] {
+    width: 100%; background: #0b1120; border: 1px solid #1f2937; color: #e2e8f0;
+    border-radius: 8px; padding: 8px; font-family: inherit;
+  }
+  .val { float: right; color: var(--accent); }
+  .preview-grid { display: grid; min-height: 320px; background: #0b1120; border-radius: 10px; padding: 6px; }
+  .cell {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    border: 1px solid #475569; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: .8rem; min-height: 36px;
+  }
+  pre {
+    background: #0b1120; border: 1px solid #1f2937; border-radius: 10px;
+    padding: 14px; overflow-x: auto; font-size: .85rem; margin-top: 14px;
+  }
+  button {
+    background: var(--accent); color: #0b1120; border: none; font-weight: 600;
+    padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: .9rem;
+  }
+  button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>CSS Grid Generator</h1>
+  <div class="grid-layout">
+    <div class="panel">
+      <label>Columns <span class="val" id="colsV">3</span></label>
+      <input type="range" id="cols" min="1" max="12" value="3">
+      <label>Rows <span class="val" id="rowsV">3</span></label>
+      <input type="range" id="rows" min="1" max="12" value="3">
+      <label>Column gap (px) <span class="val" id="cgapV">10</span></label>
+      <input type="range" id="cgap" min="0" max="60" value="10">
+      <label>Row gap (px) <span class="val" id="rgapV">10</span></label>
+      <input type="range" id="rgap" min="0" max="60" value="10">
+      <label>Column sizing</label>
+      <input type="text" id="colSize" value="1fr">
+      <label>Row sizing</label>
+      <input type="text" id="rowSize" value="1fr">
+    </div>
+    <div>
+      <div class="panel">
+        <div class="preview-grid" id="preview"></div>
+      </div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const ids = ['cols','rows','cgap','rgap','colSize','rowSize'];
+  function render() {
+    const cols = +$('cols').value, rows = +$('rows').value;
+    const cgap = +$('cgap').value, rgap = +$('rgap').value;
+    const colSize = $('colSize').value.trim() || '1fr';
+    const rowSize = $('rowSize').value.trim() || '1fr';
+    $('colsV').textContent = cols; $('rowsV').textContent = rows;
+    $('cgapV').textContent = cgap; $('rgapV').textContent = rgap;
+    const tplCols = `repeat(${cols}, ${colSize})`;
+    const tplRows = `repeat(${rows}, ${rowSize})`;
+    const p = $('preview');
+    p.style.gridTemplateColumns = tplCols;
+    p.style.gridTemplateRows = tplRows;
+    p.style.columnGap = cgap + 'px';
+    p.style.rowGap = rgap + 'px';
+    p.innerHTML = '';
+    for (let i = 0; i < cols * rows; i++) {
+      const c = document.createElement('div');
+      c.className = 'cell'; c.textContent = i + 1;
+      p.appendChild(c);
+    }
+    const css = `.container {\n  display: grid;\n  grid-template-columns: ${tplCols};\n  grid-template-rows: ${tplRows};\n  column-gap: ${cgap}px;\n  row-gap: ${rgap}px;\n}`;
+    $('css').textContent = css;
+  }
+  ids.forEach(i => $(i).addEventListener('input', render));
+  $('copy').addEventListener('click', () => {
+    navigator.clipboard.writeText($('css').textContent).then(() => {
+      const b = $('copy'); const t = b.textContent;
+      b.textContent = 'Copied!'; setTimeout(() => b.textContent = t, 1200);
+    });
+  });
+  render();
+</script>
+</body>
+</html>

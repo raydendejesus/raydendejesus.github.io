@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character Frequency Counter</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1 { font-size:1.4rem; margin:.4rem 0 1rem; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px; margin-bottom:16px; }
+  textarea { width:100%; min-height:160px; resize:vertical; background:#0b1120; color:#e2e8f0;
+    border:1px solid #1f2937; border-radius:10px; padding:10px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+  label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; }
+  button { background:var(--accent); color:#06283d; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.08); }
+  button.secondary { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:12px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid #1f2937; }
+  th { color:#94a3b8; cursor:pointer; }
+  td.token { font-family:ui-monospace,Consolas,monospace; }
+  .bar { height:8px; background:var(--accent); border-radius:4px; }
+  .scroll { max-height:400px; overflow:auto; }
+</style>
+</head>
+<body>
+  <a href="../">&larr; back</a>
+  <h1>Character Frequency Counter</h1>
+  <div class="panel">
+    <label><input type="radio" name="mode" value="char" checked> Characters</label>
+    <label><input type="radio" name="mode" value="word"> Words</label>
+    <label><input type="checkbox" id="ci"> Case-insensitive</label>
+    <label><input type="checkbox" id="nospace" checked> Ignore whitespace (char mode)</label>
+  </div>
+  <div class="panel">
+    <textarea id="input" placeholder="Paste text..."></textarea>
+    <div class="row">
+      <button id="go">Count</button>
+      <button class="secondary" id="clear">Clear</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="scroll"><table id="out"><thead><tr><th>Token</th><th>Count</th><th>%</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+<script>
+  const $ = id => document.getElementById(id);
+  function run() {
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    const ci = $('ci').checked;
+    let text = $('input').value;
+    if (ci) text = text.toLowerCase();
+    const counts = new Map(); let total = 0;
+    if (mode === 'char') {
+      const noSpace = $('nospace').checked;
+      for (const ch of text) {
+        if (noSpace && /\s/.test(ch)) continue;
+        counts.set(ch, (counts.get(ch)||0)+1); total++;
+      }
+    } else {
+      const words = text.match(/[\p{L}\p{N}']+/gu) || [];
+      for (const w of words) { counts.set(w, (counts.get(w)||0)+1); total++; }
+    }
+    const rows = [...counts.entries()].sort((a,b) => b[1]-a[1]);
+    const max = rows.length ? rows[0][1] : 1;
+    const disp = c => mode==='char' ? (c===' '?'(space)':c==='\n'?'(newline)':c==='\t'?'(tab)':c) : c;
+    const tb = $('out').querySelector('tbody');
+    tb.innerHTML = rows.map(([c,n]) =>
+      `<tr><td class="token">${disp(c).replace(/</g,'&lt;')}</td><td>${n}</td><td>${total?((n/total)*100).toFixed(1):0}%</td>`+
+      `<td style="width:30%"><div class="bar" style="width:${(n/max)*100}%"></div></td></tr>`
+    ).join('');
+  }
+  $('go').onclick = run;
+  $('clear').onclick = () => { $('input').value=''; $('out').querySelector('tbody').innerHTML=''; };
+</script>
+</body>
+</html>

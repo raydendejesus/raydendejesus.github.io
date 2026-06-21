@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Contrast Checker</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; }
+  .field { flex:1; min-width:200px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  input[type=color] { width:56px; height:40px; border:none; border-radius:8px; background:none; cursor:pointer; vertical-align:middle; }
+  input[type=text] { background:#0b1120; border:1px solid #1f2937; color:#e2e8f0; border-radius:8px; padding:9px 10px; font-family:monospace; width:120px; }
+  .preview { border-radius:12px; padding:32px; margin-top:16px; text-align:center; }
+  .preview .big { font-size:1.6rem; font-weight:600; }
+  .preview .small { font-size:.95rem; }
+  .ratio { font-size:3rem; font-weight:700; text-align:center; }
+  .badges { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:16px; }
+  .badge { padding:8px 14px; border-radius:10px; font-size:.85rem; border:1px solid #1f2937; }
+  .pass { background:#052e16; color:#4ade80; border-color:#166534; }
+  .fail { background:#3b0a0a; color:#f87171; border-color:#7f1d1d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Color Contrast Checker</h1>
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label>Foreground (text)</label>
+        <input type="color" id="fgPick" value="#e2e8f0">
+        <input type="text" id="fgHex" value="#e2e8f0">
+      </div>
+      <div class="field">
+        <label>Background</label>
+        <input type="color" id="bgPick" value="#111827">
+        <input type="text" id="bgHex" value="#111827">
+      </div>
+    </div>
+    <div class="preview" id="preview">
+      <div class="big">Large preview text</div>
+      <div class="small">Normal body text sample for readability.</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ratio" id="ratio">--</div>
+    <div class="badges" id="badges"></div>
+  </div>
+</div>
+<script>
+function clean(h){ h=h.trim(); if(h[0]!=='#') h='#'+h; return h; }
+function hexToRgb(h){
+  h=clean(h).replace('#','');
+  if(h.length===3) h=h.split('').map(c=>c+c).join('');
+  if(h.length!==6) return null;
+  const n=parseInt(h,16);
+  if(isNaN(n)) return null;
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function lum(rgb){
+  const a=rgb.map(v=>{ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
+}
+function contrast(fg,bg){
+  const L1=lum(fg), L2=lum(bg);
+  const hi=Math.max(L1,L2), lo=Math.min(L1,L2);
+  return (hi+0.05)/(lo+0.05);
+}
+const fgPick=document.getElementById('fgPick'), fgHex=document.getElementById('fgHex');
+const bgPick=document.getElementById('bgPick'), bgHex=document.getElementById('bgHex');
+const preview=document.getElementById('preview'), ratioEl=document.getElementById('ratio'), badges=document.getElementById('badges');
+function badge(label, ok){
+  return `<span class="badge ${ok?'pass':'fail'}">${label}: ${ok?'Pass':'Fail'}</span>`;
+}
+function update(){
+  const fg=hexToRgb(fgHex.value), bg=hexToRgb(bgHex.value);
+  if(!fg||!bg){ ratioEl.textContent='--'; return; }
+  preview.style.background=clean(bgHex.value);
+  preview.style.color=clean(fgHex.value);
+  const r=contrast(fg,bg);
+  ratioEl.textContent=r.toFixed(2)+' : 1';
+  badges.innerHTML =
+    badge('AA normal (4.5)', r>=4.5) +
+    badge('AA large (3.0)', r>=3) +
+    badge('AAA normal (7.0)', r>=7) +
+    badge('AAA large (4.5)', r>=4.5);
+}
+fgPick.addEventListener('input',()=>{ fgHex.value=fgPick.value; update(); });
+bgPick.addEventListener('input',()=>{ bgHex.value=bgPick.value; update(); });
+fgHex.addEventListener('input',()=>{ const r=hexToRgb(fgHex.value); if(r) fgPick.value=clean(fgHex.value); update(); });
+bgHex.addEventListener('input',()=>{ const r=hexToRgb(bgHex.value); if(r) bgPick.value=clean(bgHex.value); update(); });
+update();
+</script>
+</body>
+</html>

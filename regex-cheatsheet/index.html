@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regex Cheatsheet</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:1000px; margin:0 auto; }
+  h1 { font-weight:600; }
+  input[type=text] { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; margin-top:14px; }
+  .cols { columns:2; column-gap:18px; margin-top:16px; }
+  @media(max-width:680px){.cols{columns:1;}}
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px; margin:0 0 18px; break-inside:avoid; }
+  .panel h2 { font-size:16px; margin:0 0 10px; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:6px 8px; border-bottom:1px solid #1f2937; font-size:13.5px; vertical-align:top; }
+  td.tok { font-family:ui-monospace,monospace; color:#fbbf24; white-space:nowrap; cursor:pointer; }
+  td.tok:hover { color:var(--accent); }
+  td.desc { color:#cbd5e1; }
+  .hidden { display:none; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1f2937; border:1px solid var(--accent); padding:8px 16px; border-radius:10px; opacity:0; transition:.2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .hint { color:#64748b; font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Regex Cheatsheet</h1>
+  <input id="q" type="text" placeholder="Filter tokens or descriptions…">
+  <div class="hint">Click any token to copy it.</div>
+  <div class="cols" id="cols"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SECTIONS=[
+  ["Anchors",[
+    ["^","Start of string / line (with m flag)"],
+    ["$","End of string / line (with m flag)"],
+    ["\\b","Word boundary"],
+    ["\\B","Non-word boundary"],
+    ["\\A","Start of string (some flavors)"],
+    ["\\Z","End of string (some flavors)"]
+  ]],
+  ["Character classes",[
+    [".","Any character except newline"],
+    ["\\d","Digit [0-9]"],
+    ["\\D","Non-digit"],
+    ["\\w","Word char [A-Za-z0-9_]"],
+    ["\\W","Non-word char"],
+    ["\\s","Whitespace"],
+    ["\\S","Non-whitespace"],
+    ["[abc]","Any of a, b, c"],
+    ["[^abc]","None of a, b, c"],
+    ["[a-z]","Range a through z"],
+    ["[\\s\\S]","Truly any char incl. newline"]
+  ]],
+  ["Quantifiers",[
+    ["*","0 or more"],
+    ["+","1 or more"],
+    ["?","0 or 1 (optional)"],
+    ["{n}","Exactly n"],
+    ["{n,}","n or more"],
+    ["{n,m}","Between n and m"],
+    ["*?","Lazy 0 or more"],
+    ["+?","Lazy 1 or more"],
+    ["??","Lazy optional"]
+  ]],
+  ["Groups & references",[
+    ["(...)","Capturing group"],
+    ["(?:...)","Non-capturing group"],
+    ["(?<name>...)","Named group"],
+    ["\\1","Backreference to group 1"],
+    ["\\k<name>","Named backreference"],
+    ["a|b","Alternation: a or b"]
+  ]],
+  ["Lookarounds",[
+    ["(?=...)","Positive lookahead"],
+    ["(?!...)","Negative lookahead"],
+    ["(?<=...)","Positive lookbehind"],
+    ["(?<!...)","Negative lookbehind"]
+  ]],
+  ["Flags",[
+    ["g","Global — all matches"],
+    ["i","Case-insensitive"],
+    ["m","Multiline — ^ $ match each line"],
+    ["s","Dotall — . matches newline"],
+    ["u","Unicode mode"],
+    ["y","Sticky — match at lastIndex"]
+  ]],
+  ["Escapes & special",[
+    ["\\n","Newline"],
+    ["\\t","Tab"],
+    ["\\r","Carriage return"],
+    ["\\.","Literal dot"],
+    ["\\\\","Literal backslash"],
+    ["\\uFFFF","Unicode code point"],
+    ["\\xFF","Hex character"]
+  ]],
+  ["Common examples",[
+    ["^\\d{3}-\\d{4}$","Phone like 555-1234"],
+    ["[\\w.+-]+@[\\w-]+\\.[\\w.-]+","Basic email"],
+    ["https?://\\S+","URL"],
+    ["^#?[0-9a-fA-F]{6}$","Hex color"],
+    ["\\b\\d{4}-\\d{2}-\\d{2}\\b","ISO date YYYY-MM-DD"],
+    ["\\s+$","Trailing whitespace"]
+  ]]
+];
+const cols=document.getElementById('cols'), q=document.getElementById('q'), toast=document.getElementById('toast');
+function show(m){toast.textContent=m;toast.classList.add('show');clearTimeout(show._t);show._t=setTimeout(()=>toast.classList.remove('show'),1000);}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function build(){
+  cols.innerHTML='';
+  for(const [title,rows] of SECTIONS){
+    const p=document.createElement('div');p.className='panel';
+    let html=`<h2>${title}</h2><table>`;
+    for(const [tok,desc] of rows){
+      html+=`<tr data-search="${esc((tok+' '+desc).toLowerCase())}"><td class="tok" data-copy="${esc(tok)}">${esc(tok)}</td><td class="desc">${esc(desc)}</td></tr>`;
+    }
+    html+='</table>';
+    p.innerHTML=html;
+    cols.appendChild(p);
+  }
+  cols.querySelectorAll('td.tok').forEach(td=>{
+    td.onclick=()=>{navigator.clipboard.writeText(td.dataset.copy);show('Copied: '+td.dataset.copy);};
+  });
+}
+function filter(){
+  const s=q.value.trim().toLowerCase();
+  document.querySelectorAll('#cols tr').forEach(tr=>{
+    tr.classList.toggle('hidden', s && !tr.dataset.search.includes(s));
+  });
+  document.querySelectorAll('#cols .panel').forEach(p=>{
+    const any=[...p.querySelectorAll('tr')].some(tr=>!tr.classList.contains('hidden'));
+    p.classList.toggle('hidden',!any);
+  });
+}
+q.addEventListener('input',filter);
+build();
+</script>
+</body>
+</html>

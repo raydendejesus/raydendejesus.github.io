@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caesar Cipher</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  textarea{width:100%;min-height:120px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:.95rem;resize:vertical;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;}
+  button{background:var(--accent);color:#04222e;border:none;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:.95rem;}
+  button.alt{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  label{display:block;margin-bottom:6px;font-size:.85rem;color:#94a3b8;}
+  input[type=range]{flex:1;accent-color:var(--accent);min-width:200px;}
+  .shiftval{font-family:ui-monospace,monospace;font-size:1.1rem;color:var(--accent);min-width:3ch;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Caesar Cipher</h1>
+  <div class="panel">
+    <label>Shift</label>
+    <div class="row">
+      <input id="shift" type="range" min="-25" max="25" value="3">
+      <span class="shiftval" id="shiftval">3</span>
+      <button class="alt" id="dir">Mode: Encode</button>
+    </div>
+  </div>
+  <div class="panel">
+    <label>Input</label>
+    <textarea id="input" placeholder="Type text here...">The quick brown fox</textarea>
+  </div>
+  <div class="panel">
+    <label>Output</label>
+    <textarea id="output" readonly></textarea>
+    <div class="row">
+      <button class="alt" id="copy">Copy</button>
+    </div>
+  </div>
+</div>
+<script>
+  const shift=document.getElementById('shift');
+  const shiftval=document.getElementById('shiftval');
+  const input=document.getElementById('input');
+  const output=document.getElementById('output');
+  const dir=document.getElementById('dir');
+  let encode=true;
+  function caesar(s,n){
+    n=((n%26)+26)%26;
+    return s.replace(/[a-zA-Z]/g,c=>{
+      const base=c<='Z'?65:97;
+      return String.fromCharCode((c.charCodeAt(0)-base+n)%26+base);
+    });
+  }
+  function run(){
+    const n=parseInt(shift.value)*(encode?1:-1);
+    shiftval.textContent=shift.value;
+    output.value=caesar(input.value,n);
+  }
+  shift.addEventListener('input',run);
+  input.addEventListener('input',run);
+  dir.onclick=()=>{encode=!encode;dir.textContent='Mode: '+(encode?'Encode':'Decode');run();};
+  document.getElementById('copy').onclick=e=>{
+    navigator.clipboard.writeText(output.value).then(()=>{
+      const o=e.target.textContent;e.target.textContent='Copied!';setTimeout(()=>e.target.textContent=o,1200);
+    });
+  };
+  run();
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text Shadow Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 12px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 100%; height: 34px; border: none; background: none; }
+  input[type=text] { width:100%; background:#0b1120; border:1px solid #1f2937; color:#e2e8f0; border-radius:8px; padding:8px; font-family:inherit; }
+  .stage { min-height: 240px; display: flex; align-items: center; justify-content: center; background:#0b1120; border-radius:10px; padding:20px; }
+  #preview { font-size: 3rem; font-weight: 800; text-align:center; }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .9rem; margin-top: 14px; overflow-x:auto; white-space:pre-wrap; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Text Shadow Generator</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Preview text</label>
+      <input type="text" id="text" value="Shadow">
+      <div class="two">
+        <div><label>Text color</label><input type="color" id="tcolor" value="#e2e8f0"></div>
+        <div><label>Shadow color</label><input type="color" id="scolor" value="#38bdf8"></div>
+      </div>
+      <label>Horizontal offset (px) <span class="val" id="xV">3</span></label>
+      <input type="range" id="x" min="-40" max="40" value="3">
+      <label>Vertical offset (px) <span class="val" id="yV">3</span></label>
+      <input type="range" id="y" min="-40" max="40" value="3">
+      <label>Blur (px) <span class="val" id="blurV">6</span></label>
+      <input type="range" id="blur" min="0" max="50" value="6">
+      <label>Shadow opacity <span class="val" id="aV">0.8</span></label>
+      <input type="range" id="a" min="0" max="1" step="0.01" value="0.8">
+      <label>Font size (px) <span class="val" id="fsV">56</span></label>
+      <input type="range" id="fs" min="20" max="120" value="56">
+    </div>
+    <div>
+      <div class="panel"><div class="stage"><div id="preview">Shadow</div></div></div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const ids=['text','tcolor','scolor','x','y','blur','a','fs'];
+  function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function render(){
+    ['x','y','blur','a','fs'].forEach(k=>$(k+'V').textContent=$(k).value);
+    const [r,g,b]=hexToRgb($('scolor').value);
+    const rgba=`rgba(${r}, ${g}, ${b}, ${$('a').value})`;
+    const shadow=`${$('x').value}px ${$('y').value}px ${$('blur').value}px ${rgba}`;
+    const el=$('preview');
+    el.textContent=$('text').value||'Shadow';
+    el.style.color=$('tcolor').value;
+    el.style.textShadow=shadow;
+    el.style.fontSize=$('fs').value+'px';
+    $('css').textContent=`text-shadow: ${shadow};`;
+  }
+  ids.forEach(i=>$(i).addEventListener('input',render));
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XML Formatter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+    font-size:13px;color:#94a3b8;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;
+    font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>XML Formatter</h1>
+<p class="sub">Pretty-print, validate, or minify XML.</p>
+<div class="toolbar">
+  <button id="format">Pretty-print</button>
+  <button id="minify" class="ghost">Minify</button>
+  <button id="validate" class="ghost">Validate</button>
+  <button id="copy" class="ghost">Copy output</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col">
+    <div class="colhead"><span>Input</span></div>
+    <textarea id="input" spellcheck="false" placeholder='<root><a x="1">hi</a></root>'></textarea>
+  </div>
+  <div class="col">
+    <div class="colhead"><span>Output</span></div>
+    <pre id="output"></pre>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(msg,ok){$('status').textContent=msg;$('status').className='status '+(ok?'ok':'err');}
+
+function validateXml(raw){
+  const doc=new DOMParser().parseFromString(raw,'application/xml');
+  const err=doc.querySelector('parsererror');
+  if(err)throw new Error(err.textContent.replace(/\s+/g,' ').trim());
+  return doc;
+}
+
+// Tokenize XML into tags/text and rebuild with indentation.
+function format(raw){
+  validateXml(raw);
+  // Normalize: split on tags
+  const tokens=raw.replace(/>\s+</g,'><').trim()
+    .split(/(<[^>]+>)/).filter(t=>t.length);
+  let out=[],depth=0;
+  const pad=()=>'  '.repeat(Math.max(0,depth));
+  for(let t of tokens){
+    if(/^<\?/.test(t)||/^<!--/.test(t)||/^<!/.test(t)){ // decl, comment, doctype
+      out.push(pad()+t);
+    } else if(/^<\//.test(t)){ // closing
+      depth--;out.push(pad()+t);
+    } else if(/^</.test(t)){
+      if(/\/>$/.test(t)){ // self-closing
+        out.push(pad()+t);
+      } else { // opening
+        out.push(pad()+t);depth++;
+      }
+    } else { // text content
+      const text=t.trim();
+      if(text){
+        // attach text to previous line if it was a single open tag
+        const prev=out[out.length-1];
+        out.push(pad()+text);
+      }
+    }
+  }
+  // Merge open+text+close on one line where possible
+  let merged=[];
+  for(let i=0;i<out.length;i++){
+    const cur=out[i],nxt=out[i+1],nx2=out[i+2];
+    const o=/^\s*<[^\/!?][^>]*[^\/]>$/.test(cur);
+    const txt=nxt&&!/^\s*</.test(nxt.trim());
+    const c=nx2&&/^\s*<\//.test(nx2.trim());
+    if(o&&nxt&&txt&&nx2&&c){
+      merged.push(cur+nxt.trim()+nx2.trim());i+=2;
+    } else merged.push(cur);
+  }
+  return merged.join('\n');
+}
+
+function minify(raw){
+  validateXml(raw);
+  return raw.replace(/>\s+</g,'><').replace(/^\s+|\s+$/g,'');
+}
+
+$('format').onclick=()=>{
+  try{$('output').textContent=format($('input').value);setStatus('Valid XML — formatted ✓',true);}
+  catch(e){setStatus('Invalid XML: '+e.message,false);}
+};
+$('minify').onclick=()=>{
+  try{$('output').textContent=minify($('input').value);setStatus('Valid XML — minified ✓',true);}
+  catch(e){setStatus('Invalid XML: '+e.message,false);}
+};
+$('validate').onclick=()=>{
+  try{validateXml($('input').value);setStatus('Valid XML ✓',true);}
+  catch(e){setStatus('Invalid XML: '+e.message,false);}
+};
+$('copy').onclick=async()=>{
+  const text=$('output').textContent;
+  if(!text){setStatus('Nothing to copy',false);return;}
+  try{await navigator.clipboard.writeText(text);setStatus('Copied ✓',true);}
+  catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);
+    ta.select();try{document.execCommand('copy');setStatus('Copied ✓',true);}catch(_){setStatus('Copy failed',false);}document.body.removeChild(ta);}
+};
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared',true);};
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base Number Converter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:680px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  p.note{color:#94a3b8;font-size:.9rem;margin-top:0;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  .field{margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  label{display:block;margin-bottom:6px;font-size:.85rem;color:#94a3b8;}
+  .ir{display:flex;gap:8px;align-items:center;}
+  input{flex:1;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:1rem;}
+  input.bad{border-color:#f87171;}
+  button.copy{background:#1f2937;color:#e2e8f0;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600;}
+  button.copy:hover{filter:brightness(1.2);}
+  .err{color:#f87171;min-height:1.2em;font-size:.9rem;}
+  .arb{margin-top:8px;}
+  .arb input{width:90px;flex:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Base Number Converter</h1>
+  <p class="note">Edit any field — the others update live. Integers only.</p>
+  <div class="panel">
+    <div class="field"><label>Binary (base 2)</label><div class="ir"><input id="bin" data-base="2"><button class="copy" data-for="bin">Copy</button></div></div>
+    <div class="field"><label>Octal (base 8)</label><div class="ir"><input id="oct" data-base="8"><button class="copy" data-for="oct">Copy</button></div></div>
+    <div class="field"><label>Decimal (base 10)</label><div class="ir"><input id="dec" data-base="10"><button class="copy" data-for="dec">Copy</button></div></div>
+    <div class="field"><label>Hexadecimal (base 16)</label><div class="ir"><input id="hex" data-base="16"><button class="copy" data-for="hex">Copy</button></div></div>
+    <div class="field arb"><label>Custom base (2–36)</label><div class="ir"><input id="abase" type="number" min="2" max="36" value="36"><input id="aval" placeholder="value in custom base"><button class="copy" data-for="aval">Copy</button></div></div>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+  const fields=[document.getElementById('bin'),document.getElementById('oct'),document.getElementById('dec'),document.getElementById('hex')];
+  const abase=document.getElementById('abase');
+  const aval=document.getElementById('aval');
+  const err=document.getElementById('err');
+  let updating=false;
+
+  function clearBad(){fields.forEach(f=>f.classList.remove('bad'));aval.classList.remove('bad');}
+
+  function update(source){
+    if(updating)return;
+    err.textContent='';
+    const raw=source.value.trim();
+    if(raw===''){updating=true;fields.forEach(f=>{if(f!==source)f.value='';});if(source!==aval)aval.value='';updating=false;clearBad();return;}
+    let base=source===aval?parseInt(abase.value):parseInt(source.dataset.base);
+    if(source===aval&&(isNaN(base)||base<2||base>36)){err.textContent='Custom base must be 2–36.';return;}
+    const norm=raw.replace(/^[+]/,'').toLowerCase();
+    const sign=norm.startsWith('-')?-1n:1n;
+    const digits=norm.replace(/^-/,'');
+    let value;
+    try{
+      value=parseBig(digits,base);
+    }catch(e){source.classList.add('bad');err.textContent='Invalid digits for base '+base+'.';return;}
+    clearBad();
+    const v=sign*value;
+    updating=true;
+    fields.forEach(f=>{if(f!==source)f.value=toBase(v,parseInt(f.dataset.base));});
+    if(source!==aval){const ab=parseInt(abase.value);if(ab>=2&&ab<=36)aval.value=toBase(v,ab);}
+    updating=false;
+  }
+  function parseBig(str,base){
+    if(str==='')throw new Error('empty');
+    const bb=BigInt(base);let acc=0n;
+    for(const ch of str){
+      const d=parseInt(ch,36);
+      if(isNaN(d)||d>=base)throw new Error('bad digit');
+      acc=acc*bb+BigInt(d);
+    }
+    return acc;
+  }
+  function toBase(v,base){
+    return v.toString(base);
+  }
+  fields.forEach(f=>f.addEventListener('input',()=>update(f)));
+  aval.addEventListener('input',()=>update(aval));
+  abase.addEventListener('input',()=>{if(aval.value.trim())update(aval);});
+  document.querySelectorAll('button.copy').forEach(b=>{
+    b.onclick=()=>{
+      const el=document.getElementById(b.dataset.for);
+      navigator.clipboard.writeText(el.value).then(()=>{
+        const o=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=o,1100);
+      });
+    };
+  });
+</script>
+</body>
+</html>

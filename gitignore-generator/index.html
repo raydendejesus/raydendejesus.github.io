@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gitignore Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height:100vh;
+  }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:900px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  .templates { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+  label.tpl { display:flex; align-items:center; gap:8px; background:#0b1120; border:1px solid #1f2937; border-radius:10px; padding:10px 12px; cursor:pointer; font-size:14px; }
+  label.tpl:hover { border-color:var(--accent); }
+  label.tpl input { accent-color:var(--accent); }
+  textarea { width:100%; min-height:340px; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:10px; padding:12px; font-family:ui-monospace,monospace; font-size:13px; resize:vertical; }
+  .btns { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:10px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  button:active { transform:translateY(1px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; back</a>
+  <h1>Gitignore Generator</h1>
+  <p class="sub">Pick your stacks, combine built-in templates, copy or download.</p>
+  <div class="panel">
+    <div class="templates" id="templates"></div>
+  </div>
+  <div class="panel">
+    <textarea id="output" readonly placeholder="Select templates above..."></textarea>
+    <div class="btns">
+      <button id="copyBtn">Copy</button>
+      <button class="ghost" id="dlBtn">Download .gitignore</button>
+    </div>
+  </div>
+</div>
+<script>
+const TEMPLATES = {
+  "Node": `# Node\nnode_modules/\nnpm-debug.log*\nyarn-debug.log*\nyarn-error.log*\n.pnpm-debug.log*\n.npm\ndist/\nbuild/\ncoverage/\n.env\n.env.local`,
+  "Python": `# Python\n__pycache__/\n*.py[cod]\n*$py.class\n*.so\n.Python\nbuild/\ndist/\n*.egg-info/\n.venv/\nvenv/\nenv/\n.pytest_cache/\n.mypy_cache/\n.coverage`,
+  "Java": `# Java\n*.class\n*.jar\n*.war\n*.ear\ntarget/\n.gradle/\nbuild/\nhs_err_pid*`,
+  "Go": `# Go\n*.exe\n*.exe~\n*.dll\n*.so\n*.dylib\n*.test\n*.out\nvendor/\nbin/`,
+  "Rust": `# Rust\n/target/\n**/*.rs.bk\nCargo.lock`,
+  "C/C++": `# C/C++\n*.o\n*.obj\n*.a\n*.lib\n*.so\n*.dll\n*.exe\n*.out\nbuild/`,
+  "Unity": `# Unity\n[Ll]ibrary/\n[Tt]emp/\n[Oo]bj/\n[Bb]uild/\n[Bb]uilds/\n[Ll]ogs/\n*.csproj\n*.unityproj\n*.sln`,
+  "macOS": `# macOS\n.DS_Store\n.AppleDouble\n.LSOverride\n._*\n.Spotlight-V100\n.Trashes`,
+  "Windows": `# Windows\nThumbs.db\nehthumbs.db\nDesktop.ini\n$RECYCLE.BIN/\n*.lnk`,
+  "Linux": `# Linux\n*~\n.fuse_hidden*\n.directory\n.Trash-*`,
+  "VS Code": `# VS Code\n.vscode/*\n!.vscode/settings.json\n!.vscode/extensions.json\n*.code-workspace`,
+  "JetBrains": `# JetBrains\n.idea/\n*.iml\n*.iws\nout/`,
+  "React": `# React\nnode_modules/\nbuild/\n.env.local\n.env.development.local\n.env.production.local`,
+  "Next.js": `# Next.js\n.next/\nout/\nnode_modules/\n.vercel\n.env*.local`,
+  "Django": `# Django\n*.log\ndb.sqlite3\ndb.sqlite3-journal\nmedia/\nstaticfiles/\n.env`,
+  "Laravel": `# Laravel\n/vendor/\n/node_modules/\n.env\n.phpunit.result.cache\nstorage/*.key`
+};
+const tplDiv = document.getElementById('templates');
+const out = document.getElementById('output');
+Object.keys(TEMPLATES).forEach(name => {
+  const l = document.createElement('label');
+  l.className = 'tpl';
+  l.innerHTML = `<input type="checkbox" value="${name}"><span>${name}</span>`;
+  l.querySelector('input').addEventListener('change', render);
+  tplDiv.appendChild(l);
+});
+function render() {
+  const picked = [...document.querySelectorAll('#templates input:checked')].map(i=>i.value);
+  out.value = picked.map(n=>TEMPLATES[n]).join('\n\n');
+}
+document.getElementById('copyBtn').addEventListener('click', async e => {
+  if(!out.value) return;
+  try { await navigator.clipboard.writeText(out.value); } catch { out.select(); document.execCommand('copy'); }
+  const b=e.target; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);
+});
+document.getElementById('dlBtn').addEventListener('click', () => {
+  if(!out.value) return;
+  const blob = new Blob([out.value], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '.gitignore'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>

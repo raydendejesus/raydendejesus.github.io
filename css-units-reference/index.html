@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Units Reference</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1,h2 { font-weight:600; }
+  h2 { font-size:18px; margin:0 0 10px; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #1f2937; font-size:14px; vertical-align:top; }
+  th { color:#94a3b8; }
+  .u { color:var(--accent); font-family:ui-monospace,monospace; font-weight:600; }
+  .conv { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .conv label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:#94a3b8; }
+  input[type=number] { padding:10px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; width:130px; }
+  .eq { font-size:24px; color:#64748b; padding-bottom:6px; }
+  small { color:#64748b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>CSS Units Reference</h1>
+
+  <div class="panel">
+    <h2>px ⇄ rem converter</h2>
+    <div class="conv">
+      <label>root font-size (px)<input id="root" type="number" value="16" step="1"></label>
+      <label>px<input id="px" type="number" value="24" step="1"></label>
+      <span class="eq">=</span>
+      <label>rem<input id="rem" type="number" value="1.5" step="0.1"></label>
+    </div>
+    <p><small>Edit any field — px and rem stay in sync using the root font-size.</small></p>
+  </div>
+
+  <div class="panel">
+    <h2>Units explained</h2>
+    <table>
+      <thead><tr><th>Unit</th><th>Type</th><th>Meaning</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="u">px</td><td>Absolute</td><td>One CSS pixel (1/96 inch). Fixed regardless of context.</td><td><code>border: 1px solid</code></td></tr>
+        <tr><td class="u">rem</td><td>Relative</td><td>Relative to the root (&lt;html&gt;) font-size. Best for scalable layouts.</td><td><code>font-size: 1.5rem</code></td></tr>
+        <tr><td class="u">em</td><td>Relative</td><td>Relative to the current element's font-size. Compounds when nested.</td><td><code>padding: 0.5em</code></td></tr>
+        <tr><td class="u">%</td><td>Relative</td><td>Percentage of the parent's corresponding value.</td><td><code>width: 50%</code></td></tr>
+        <tr><td class="u">vw / vh</td><td>Viewport</td><td>1% of viewport width / height.</td><td><code>height: 100vh</code></td></tr>
+        <tr><td class="u">vmin / vmax</td><td>Viewport</td><td>1% of the smaller / larger viewport dimension.</td><td><code>font-size: 5vmin</code></td></tr>
+        <tr><td class="u">ch</td><td>Relative</td><td>Width of the "0" glyph in the current font. Great for text columns.</td><td><code>max-width: 60ch</code></td></tr>
+        <tr><td class="u">ex</td><td>Relative</td><td>x-height of the current font.</td><td><code>height: 2ex</code></td></tr>
+        <tr><td class="u">fr</td><td>Grid</td><td>A fraction of free space in a CSS grid.</td><td><code>grid-template-columns: 1fr 2fr</code></td></tr>
+        <tr><td class="u">pt</td><td>Absolute</td><td>Point = 1/72 inch. Common in print.</td><td><code>font-size: 12pt</code></td></tr>
+        <tr><td class="u">pc</td><td>Absolute</td><td>Pica = 12pt.</td><td><code>margin: 1pc</code></td></tr>
+        <tr><td class="u">cm / mm / in</td><td>Absolute</td><td>Physical units; mainly for print stylesheets.</td><td><code>width: 21cm</code></td></tr>
+        <tr><td class="u">dvh / svh / lvh</td><td>Viewport</td><td>Dynamic / small / large viewport height (mobile URL-bar aware).</td><td><code>height: 100dvh</code></td></tr>
+        <tr><td class="u">deg / turn / rad</td><td>Angle</td><td>Angles for transforms & gradients. 1turn = 360deg.</td><td><code>rotate(45deg)</code></td></tr>
+        <tr><td class="u">s / ms</td><td>Time</td><td>Seconds / milliseconds for animations.</td><td><code>transition: .3s</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+const root=document.getElementById('root'), px=document.getElementById('px'), rem=document.getElementById('rem');
+function fromPx(){const r=parseFloat(root.value)||16;rem.value=+( (parseFloat(px.value)||0)/r ).toFixed(4);}
+function fromRem(){const r=parseFloat(root.value)||16;px.value=+( (parseFloat(rem.value)||0)*r ).toFixed(4);}
+px.addEventListener('input',fromPx);
+rem.addEventListener('input',fromRem);
+root.addEventListener('input',fromPx);
+fromPx();
+</script>
+</body>
+</html>

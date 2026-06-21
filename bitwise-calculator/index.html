@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitwise Calculator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:780px; margin:0 auto; }
+  h1 { font-weight:600; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  label { color:#94a3b8; font-size:13px; min-width:60px; }
+  input,select { padding:10px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; font-family:ui-monospace,monospace; }
+  input { flex:1; min-width:160px; }
+  .ops { display:flex; gap:8px; flex-wrap:wrap; }
+  .ops button { padding:8px 14px; background:#1f2937; border:1px solid #334155; color:#e2e8f0; border-radius:8px; cursor:pointer; font-family:ui-monospace,monospace; }
+  .ops button.active { border-color:var(--accent); background:#0b2a3a; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  td { padding:9px 10px; border-bottom:1px solid #1f2937; font-size:15px; }
+  td.k { color:#94a3b8; width:90px; }
+  td.v { font-family:ui-monospace,monospace; color:var(--accent); word-break:break-all; }
+  .err { color:#f87171; min-height:18px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Bitwise Calculator</h1>
+  <div class="panel">
+    <div class="row"><label>A</label><input id="a" value="60" placeholder="dec, 0x.., 0b.."></div>
+    <div class="row"><label>B</label><input id="b" value="13" placeholder="dec, 0x.., 0b.."></div>
+    <div class="row"><label>Op</label>
+      <div class="ops" id="ops">
+        <button data-op="and">A AND B</button>
+        <button data-op="or">A OR B</button>
+        <button data-op="xor">A XOR B</button>
+        <button data-op="not">NOT A</button>
+        <button data-op="shl">A &lt;&lt; B</button>
+        <button data-op="shr">A &gt;&gt; B</button>
+      </div>
+    </div>
+    <div class="err" id="err"></div>
+    <table id="out"></table>
+  </div>
+</div>
+<script>
+const a=document.getElementById('a'), b=document.getElementById('b'), err=document.getElementById('err'), out=document.getElementById('out');
+let op='and';
+function parse(s){
+  s=s.trim().toLowerCase();
+  if(s==='')return NaN;
+  let v;
+  if(s.startsWith('0x')) v=parseInt(s.slice(2),16);
+  else if(s.startsWith('0b')) v=parseInt(s.slice(2),2);
+  else if(/^-?\d+$/.test(s)) v=parseInt(s,10);
+  else return NaN;
+  return v;
+}
+function row(k,v){return `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;}
+function fmt(n){
+  // present as 32-bit two's complement view
+  const u=n>>>0;
+  return {
+    dec: n,
+    udec: u,
+    hex: '0x'+u.toString(16).toUpperCase(),
+    bin: u.toString(2).padStart(32,'0').replace(/(.{8})(?=.)/g,'$1 ')
+  };
+}
+function calc(){
+  err.textContent=''; out.innerHTML='';
+  const A=parse(a.value), B=parse(b.value);
+  if(isNaN(A)){err.textContent='A is not a valid number.';return;}
+  if(op!=='not' && isNaN(B)){err.textContent='B is not a valid number.';return;}
+  let r;
+  switch(op){
+    case 'and': r=A&B; break;
+    case 'or': r=A|B; break;
+    case 'xor': r=A^B; break;
+    case 'not': r=~A; break;
+    case 'shl': r=A<<(B&31); break;
+    case 'shr': r=A>>(B&31); break;
+  }
+  const f=fmt(r);
+  out.innerHTML =
+    row('Decimal', f.dec) +
+    row('Unsigned', f.udec) +
+    row('Hex', f.hex) +
+    row('Binary', f.bin);
+}
+document.querySelectorAll('#ops button').forEach(btn=>{
+  btn.onclick=()=>{op=btn.dataset.op;document.querySelectorAll('#ops button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');calc();};
+});
+document.querySelector('#ops button').classList.add('active');
+a.addEventListener('input',calc); b.addEventListener('input',calc);
+calc();
+</script>
+</body>
+</html>

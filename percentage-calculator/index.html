@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Percentage Calculator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:680px; margin:0 auto; }
+  h1 { font-weight:600; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .panel p { margin:0 0 12px; color:#cbd5e1; font-size:15px; }
+  input { padding:9px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; width:120px; }
+  .result { color:var(--accent); font-family:ui-monospace,monospace; font-size:20px; margin-top:12px; }
+  .lbl { color:#94a3b8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Percentage Calculator</h1>
+
+  <div class="panel">
+    <p>What is <input id="a1" type="number" value="20" step="any">% of <input id="a2" type="number" value="150" step="any"> ?</p>
+    <div class="result" id="r1"></div>
+  </div>
+
+  <div class="panel">
+    <p><input id="b1" type="number" value="30" step="any"> is what % of <input id="b2" type="number" value="120" step="any"> ?</p>
+    <div class="result" id="r2"></div>
+  </div>
+
+  <div class="panel">
+    <p>Percent change from <input id="c1" type="number" value="80" step="any"> to <input id="c2" type="number" value="100" step="any"> ?</p>
+    <div class="result" id="r3"></div>
+  </div>
+</div>
+<script>
+function num(id){return parseFloat(document.getElementById(id).value);}
+function fmt(n){if(!isFinite(n))return '—';return +n.toFixed(6)+'';}
+function calc(){
+  const a1=num('a1'),a2=num('a2');
+  document.getElementById('r1').textContent = (isFinite(a1)&&isFinite(a2)) ? `= ${fmt(a1/100*a2)}` : '—';
+  const b1=num('b1'),b2=num('b2');
+  document.getElementById('r2').textContent = (isFinite(b1)&&isFinite(b2)) ? `= ${fmt(b1/b2*100)}%` : '—';
+  const c1=num('c1'),c2=num('c2');
+  if(isFinite(c1)&&isFinite(c2)){
+    const ch=(c2-c1)/Math.abs(c1)*100;
+    const dir=ch>0?'increase':ch<0?'decrease':'no change';
+    document.getElementById('r3').textContent = `= ${fmt(ch)}%  (${dir})`;
+  } else document.getElementById('r3').textContent='—';
+}
+document.querySelectorAll('input').forEach(i=>i.addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>

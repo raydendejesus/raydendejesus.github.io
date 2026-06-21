@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neumorphism Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 14px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 100%; height: 36px; border: none; background: none; }
+  .stage { min-height: 340px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+  .neu { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .85rem; margin-top: 14px; overflow-x:auto; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  .seg { display:flex; gap:8px; margin-top:6px; }
+  .seg button { flex:1; margin-top:0; background:#0b1120; color:#94a3b8; border:1px solid #1f2937; }
+  .seg button.active { background:var(--accent); color:#0b1120; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Neumorphism Generator</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Base color</label>
+      <input type="color" id="color" value="#1f2937">
+      <label>Size (px) <span class="val" id="sizeV">200</span></label>
+      <input type="range" id="size" min="80" max="280" value="200">
+      <label>Distance (px) <span class="val" id="distV">14</span></label>
+      <input type="range" id="dist" min="2" max="50" value="14">
+      <label>Intensity <span class="val" id="intV">0.2</span></label>
+      <input type="range" id="int" min="0.02" max="0.6" step="0.01" value="0.2">
+      <label>Blur (px) <span class="val" id="blurV">28</span></label>
+      <input type="range" id="blur" min="0" max="80" value="28">
+      <label>Border radius (px) <span class="val" id="radV">28</span></label>
+      <input type="range" id="rad" min="0" max="100" value="28">
+      <label>Shape</label>
+      <div class="seg" id="shape">
+        <button data-s="flat" class="active">Flat</button>
+        <button data-s="concave">Concave</button>
+        <button data-s="convex">Convex</button>
+        <button data-s="pressed">Pressed</button>
+      </div>
+    </div>
+    <div>
+      <div class="panel"><div class="stage" id="stage"><div class="neu" id="neu"></div></div></div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const ids = ['color','size','dist','int','blur','rad'];
+  let shape = 'flat';
+  function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function adjust(rgb,amt){ return rgb.map(c=>Math.max(0,Math.min(255,Math.round(c+amt)))); }
+  function render(){
+    const color=$('color').value, size=+$('size').value, dist=+$('dist').value, int=+$('int').value, blur=+$('blur').value, rad=+$('rad').value;
+    ['size','dist','int','blur','rad'].forEach(k=>$(k+'V').textContent=$(k).value);
+    const rgb = hexToRgb(color);
+    const light = `rgb(${adjust(rgb, 255*int).join(', ')})`;
+    const dark = `rgb(${adjust(rgb, -255*int).join(', ')})`;
+    const inset = shape==='pressed' ? 'inset ' : '';
+    const shadow = `${inset}${dist}px ${dist}px ${blur}px ${dark}, ${inset}-${dist}px -${dist}px ${blur}px ${light}`;
+    let bg = color;
+    if(shape==='concave') bg = `linear-gradient(145deg, rgb(${adjust(rgb,-255*int*0.5).join(',')}), rgb(${adjust(rgb,255*int*0.5).join(',')}))`;
+    if(shape==='convex') bg = `linear-gradient(145deg, rgb(${adjust(rgb,255*int*0.5).join(',')}), rgb(${adjust(rgb,-255*int*0.5).join(',')}))`;
+    const stage = $('stage'); stage.style.background = color;
+    const el = $('neu');
+    el.style.width = size+'px'; el.style.height = size+'px';
+    el.style.borderRadius = rad+'px';
+    el.style.background = bg;
+    el.style.boxShadow = shadow;
+    el.style.color = adjust(rgb,255*int*1.5)[0] > 140 ? '#1f2937' : '#e2e8f0';
+    el.textContent = shape;
+    $('css').textContent = `border-radius: ${rad}px;\nbackground: ${bg};\nbox-shadow: ${shadow};`;
+  }
+  ids.forEach(i=>$(i).addEventListener('input',render));
+  $('shape').addEventListener('click',e=>{
+    if(e.target.tagName!=='BUTTON') return;
+    shape = e.target.dataset.s;
+    [...$('shape').children].forEach(b=>b.classList.toggle('active', b===e.target));
+    render();
+  });
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

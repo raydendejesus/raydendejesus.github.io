@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subnet Calculator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-weight:600; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input,select { padding:12px 14px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; }
+  #ip { flex:1; min-width:180px; font-family:ui-monospace,monospace; }
+  .err { color:#f87171; margin-top:10px; min-height:20px; }
+  table { width:100%; border-collapse:collapse; margin-top:6px; }
+  td { padding:9px 10px; border-bottom:1px solid #1f2937; font-size:15px; }
+  td.k { color:#94a3b8; width:40%; }
+  td.v { font-family:ui-monospace,monospace; color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Subnet Calculator</h1>
+  <div class="panel">
+    <div class="row">
+      <input id="ip" type="text" value="192.168.1.10" placeholder="IP address e.g. 192.168.1.10">
+      <span>/</span>
+      <select id="cidr"></select>
+    </div>
+    <div class="err" id="err"></div>
+    <table id="out"></table>
+  </div>
+</div>
+<script>
+const cidrSel=document.getElementById('cidr');
+for(let i=0;i<=32;i++){const o=document.createElement('option');o.value=i;o.textContent=i;cidrSel.appendChild(o);}
+cidrSel.value=24;
+const ipIn=document.getElementById('ip'), err=document.getElementById('err'), out=document.getElementById('out');
+function parseIP(s){
+  const p=s.trim().split('.');
+  if(p.length!==4) return null;
+  const n=p.map(x=>{ if(!/^\d+$/.test(x))return -1; const v=+x; return (v>=0&&v<=255)?v:-1; });
+  if(n.some(v=>v<0)) return null;
+  return (n[0]*16777216 + n[1]*65536 + n[2]*256 + n[3])>>>0;
+}
+function toIP(u){u=u>>>0;return [(u>>>24)&255,(u>>>16)&255,(u>>>8)&255,u&255].join('.');}
+function row(k,v){return `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;}
+function calc(){
+  err.textContent=''; out.innerHTML='';
+  const ip=parseIP(ipIn.value);
+  if(ip===null){err.textContent='Invalid IPv4 address.';return;}
+  const c=+cidrSel.value;
+  const mask = c===0 ? 0 : (0xFFFFFFFF << (32-c))>>>0;
+  const network = (ip & mask)>>>0;
+  const broadcast = (network | (~mask>>>0))>>>0;
+  const total = Math.pow(2,32-c);
+  let first,last,usable;
+  if(c>=31){ first=network; last=broadcast; usable = c===32?1:2; }
+  else { first=(network+1)>>>0; last=(broadcast-1)>>>0; usable=total-2; }
+  const wildcard = (~mask>>>0)>>>0;
+  out.innerHTML =
+    row('Network address', toIP(network)+' /'+c) +
+    row('Broadcast address', toIP(broadcast)) +
+    row('Subnet mask', toIP(mask)) +
+    row('Wildcard mask', toIP(wildcard)) +
+    row('Host range', toIP(first)+' – '+toIP(last)) +
+    row('Usable hosts', usable.toLocaleString()) +
+    row('Total addresses', total.toLocaleString()) +
+    row('Mask (binary)', toIP(mask).split('.').map(x=>(+x).toString(2).padStart(8,'0')).join('.'));
+}
+ipIn.addEventListener('input',calc);
+cidrSel.addEventListener('change',calc);
+calc();
+</script>
+</body>
+</html>

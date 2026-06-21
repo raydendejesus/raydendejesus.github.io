@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP Status Codes</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a.back { color: #38bdf8; text-decoration: none; font-size: 14px; }
+  a.back:hover { text-decoration: underline; }
+  h1 { font-size: 26px; margin: 12px 0 4px; }
+  p.sub { color: #94a3b8; margin: 0 0 20px; }
+  .panel {
+    background: #111827; border: 1px solid #1f2937; border-radius: 16px;
+    padding: 18px; max-width: 1000px; margin: 0 auto;
+  }
+  input.search {
+    width: 100%; padding: 12px 14px; font-size: 15px;
+    background: #0b1120; color: #e2e8f0;
+    border: 1px solid #1f2937; border-radius: 12px; outline: none;
+  }
+  input.search:focus { border-color: #38bdf8; }
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .cat {
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+    background: #0b1120; border: 1px solid #1f2937; color: #cbd5e1;
+  }
+  .cat.active { background: #38bdf8; color: #0b1120; border-color: #38bdf8; font-weight: 600; }
+  .row {
+    display: grid; grid-template-columns: 70px 1fr auto; gap: 14px; align-items: start;
+    padding: 12px; border-bottom: 1px solid #1f2937;
+  }
+  .row:last-child { border-bottom: none; }
+  .code { font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .c1 { color: #818cf8; } .c2 { color: #34d399; } .c3 { color: #fbbf24; }
+  .c4 { color: #f87171; } .c5 { color: #fb7185; }
+  .name { font-weight: 600; }
+  .desc { color: #94a3b8; font-size: 14px; margin-top: 2px; }
+  button.copy {
+    background: #0b1120; color: #38bdf8; border: 1px solid #1f2937;
+    border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px;
+  }
+  button.copy:hover { border-color: #38bdf8; }
+  .empty { color: #94a3b8; padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+  <a class="back" href="../">&larr; back</a>
+  <h1>HTTP Status Codes</h1>
+  <p class="sub">Searchable reference of HTTP response status codes.</p>
+  <div class="panel">
+    <input class="search" id="search" placeholder="Search by code, name, or meaning (e.g. 404, teapot, redirect)">
+    <div class="cats" id="cats"></div>
+    <div id="list"></div>
+  </div>
+<script>
+const DATA = [
+  [100,"Continue","Server received request headers; client should proceed with the body."],
+  [101,"Switching Protocols","Server is switching protocols as requested by the client."],
+  [102,"Processing","Server has received and is processing the request (WebDAV)."],
+  [103,"Early Hints","Used to return some response headers before final response."],
+  [200,"OK","Request succeeded. The standard success response."],
+  [201,"Created","Request succeeded and a new resource was created."],
+  [202,"Accepted","Request accepted for processing, but not yet completed."],
+  [203,"Non-Authoritative Information","Returned meta-information is from a copy, not the origin."],
+  [204,"No Content","Request succeeded; no content to return in the body."],
+  [205,"Reset Content","Tells the client to reset the document view."],
+  [206,"Partial Content","Returning part of the resource due to a Range header."],
+  [207,"Multi-Status","Conveys multiple status codes for multiple operations (WebDAV)."],
+  [208,"Already Reported","Members already enumerated; not included again (WebDAV)."],
+  [226,"IM Used","Server fulfilled request and result is an instance-manipulation."],
+  [300,"Multiple Choices","Multiple possible responses; client may choose one."],
+  [301,"Moved Permanently","Resource permanently moved to a new URL."],
+  [302,"Found","Resource temporarily resides at a different URL."],
+  [303,"See Other","Get the resource at another URI with a GET request."],
+  [304,"Not Modified","Cached version is still valid; no need to retransmit."],
+  [307,"Temporary Redirect","Repeat request to new URI using the same method."],
+  [308,"Permanent Redirect","Resource permanently moved; reuse the same method."],
+  [400,"Bad Request","Server cannot process due to a client error (malformed syntax)."],
+  [401,"Unauthorized","Authentication is required and has failed or not been provided."],
+  [402,"Payment Required","Reserved for future use; sometimes used for paid APIs."],
+  [403,"Forbidden","Server understood the request but refuses to authorize it."],
+  [404,"Not Found","The requested resource could not be found."],
+  [405,"Method Not Allowed","The request method is not supported for this resource."],
+  [406,"Not Acceptable","No content matching the Accept headers can be produced."],
+  [407,"Proxy Authentication Required","Client must authenticate with a proxy first."],
+  [408,"Request Timeout","Server timed out waiting for the request."],
+  [409,"Conflict","Request conflicts with the current state of the resource."],
+  [410,"Gone","Resource is permanently gone and no forwarding address exists."],
+  [411,"Length Required","Content-Length header is required for this request."],
+  [412,"Precondition Failed","A precondition in the request headers was not met."],
+  [413,"Payload Too Large","Request entity is larger than the server will process."],
+  [414,"URI Too Long","The request URI is longer than the server will interpret."],
+  [415,"Unsupported Media Type","The media format of the request is not supported."],
+  [416,"Range Not Satisfiable","The requested Range cannot be fulfilled."],
+  [417,"Expectation Failed","The Expect request-header could not be met."],
+  [418,"I'm a teapot","The server refuses to brew coffee with a teapot (RFC 2324)."],
+  [421,"Misdirected Request","Request directed at a server unable to produce a response."],
+  [422,"Unprocessable Entity","Request well-formed but semantically erroneous (validation)."],
+  [423,"Locked","The resource being accessed is locked (WebDAV)."],
+  [424,"Failed Dependency","Request failed due to a previous request's failure (WebDAV)."],
+  [425,"Too Early","Server unwilling to risk processing a possibly-replayed request."],
+  [426,"Upgrade Required","Client should switch to a different protocol."],
+  [428,"Precondition Required","Origin server requires the request to be conditional."],
+  [429,"Too Many Requests","User has sent too many requests in a given time (rate limiting)."],
+  [431,"Request Header Fields Too Large","Headers are too large for the server to process."],
+  [451,"Unavailable For Legal Reasons","Resource unavailable due to legal demands."],
+  [500,"Internal Server Error","A generic server error with no more specific message."],
+  [501,"Not Implemented","Server does not support the functionality required."],
+  [502,"Bad Gateway","Invalid response received from an upstream server."],
+  [503,"Service Unavailable","Server is not ready (overloaded or down for maintenance)."],
+  [504,"Gateway Timeout","Upstream server did not respond in time."],
+  [505,"HTTP Version Not Supported","HTTP version used in the request is not supported."],
+  [506,"Variant Also Negotiates","Internal config error in content negotiation."],
+  [507,"Insufficient Storage","Server cannot store the representation (WebDAV)."],
+  [508,"Loop Detected","Server detected an infinite loop processing the request (WebDAV)."],
+  [510,"Not Extended","Further extensions to the request are required."],
+  [511,"Network Authentication Required","Client must authenticate to gain network access."]
+];
+const CATS = {
+  "All": null,
+  "1xx Info": 1, "2xx Success": 2, "3xx Redirect": 3,
+  "4xx Client Error": 4, "5xx Server Error": 5
+};
+let activeCat = null;
+const listEl = document.getElementById('list');
+const searchEl = document.getElementById('search');
+const catsEl = document.getElementById('cats');
+
+Object.keys(CATS).forEach(name => {
+  const d = document.createElement('div');
+  d.className = 'cat' + (CATS[name] === activeCat ? ' active' : '');
+  d.textContent = name;
+  d.onclick = () => { activeCat = CATS[name]; renderCats(); render(); };
+  catsEl.appendChild(d);
+});
+function renderCats() {
+  [...catsEl.children].forEach((c, i) => {
+    const name = Object.keys(CATS)[i];
+    c.classList.toggle('active', CATS[name] === activeCat);
+  });
+}
+function render() {
+  const q = searchEl.value.trim().toLowerCase();
+  const rows = DATA.filter(([code, name, desc]) => {
+    if (activeCat !== null && Math.floor(code/100) !== activeCat) return false;
+    if (!q) return true;
+    return String(code).includes(q) || name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+  });
+  if (!rows.length) { listEl.innerHTML = '<div class="empty">No matching status codes.</div>'; return; }
+  listEl.innerHTML = '';
+  rows.forEach(([code, name, desc]) => {
+    const cls = 'c' + Math.floor(code/100);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div class="code ${cls}">${code}</div>
+      <div><div class="name">${name}</div><div class="desc">${desc}</div></div>`;
+    const btn = document.createElement('button');
+    btn.className = 'copy'; btn.textContent = 'Copy';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(`${code} ${name}`).then(() => {
+        btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1200);
+      });
+    };
+    row.appendChild(btn);
+    listEl.appendChild(row);
+  });
+}
+searchEl.addEventListener('input', render);
+render();
+</script>
+</body>
+</html>

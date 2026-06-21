@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV to JSON</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .opts{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center;margin-bottom:12px;font-size:13px;color:#94a3b8;}
+  .opts input[type=text]{width:60px;background:#0b1120;border:1px solid #1f2937;color:#e2e8f0;border-radius:8px;padding:6px 8px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>CSV to JSON</h1>
+<p class="sub">Paste CSV, pick a delimiter, and convert to a JSON array.</p>
+<div class="opts">
+  <label>Delimiter <input id="delim" type="text" value="," maxlength="3"></label>
+  <label><input id="header" type="checkbox" checked> First row is header</label>
+</div>
+<div class="toolbar">
+  <button id="convert">Convert</button>
+  <button id="copy" class="ghost">Copy output</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col"><div class="colhead">CSV input</div>
+    <textarea id="input" spellcheck="false" placeholder="name,age&#10;Alice,30&#10;Bob,25"></textarea></div>
+  <div class="col"><div class="colhead">JSON output</div><pre id="output"></pre></div>
+</div>
+<script>
+function parseCSV(text, delim){
+  const rows=[]; let row=[], field='', i=0, inQ=false;
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue;} inQ=false;i++;continue; }
+      field+=c;i++;continue;
+    }
+    if(c==='"'){inQ=true;i++;continue;}
+    if(c===delim){row.push(field);field='';i++;continue;}
+    if(c==='\r'){i++;continue;}
+    if(c==='\n'){row.push(field);rows.push(row);row=[];field='';i++;continue;}
+    field+=c;i++;
+  }
+  row.push(field); rows.push(row);
+  // drop trailing empty row
+  if(rows.length && rows[rows.length-1].length===1 && rows[rows.length-1][0]==='') rows.pop();
+  return rows;
+}
+function coerce(v){
+  if(v==='') return v;
+  if(/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(v)) return Number(v);
+  if(v==='true') return true;
+  if(v==='false') return false;
+  return v;
+}
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+function convert(){
+  const text=$('input').value;
+  if(!text.trim()){setStatus('Nothing to convert','err');$('output').textContent='';return;}
+  let delim=$('delim').value||',';
+  if(delim==='\\t') delim='\t';
+  try{
+    const rows=parseCSV(text,delim);
+    let out;
+    if($('header').checked){
+      const headers=rows[0];
+      out=rows.slice(1).map(r=>{const o={};headers.forEach((h,j)=>{o[h]=coerce(r[j]!==undefined?r[j]:'');});return o;});
+    }else{
+      out=rows.map(r=>r.map(coerce));
+    }
+    $('output').textContent=JSON.stringify(out,null,2);
+    setStatus('Converted '+out.length+' rows','ok');
+  }catch(e){setStatus('Error: '+e.message,'err');}
+}
+$('convert').onclick=convert;
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared');};
+$('copy').onclick=async()=>{const t=$('output').textContent;if(!t){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(t);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+$('input').addEventListener('input',()=>{if($('input').value.trim())convert();});
+</script>
+</body>
+</html>

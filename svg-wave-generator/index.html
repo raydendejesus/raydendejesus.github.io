@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Wave Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:960px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  label { font-size:.85rem; color:#94a3b8; display:block; margin-bottom:4px; }
+  .ctl { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:16px; }
+  input[type=color] { width:48px; height:36px; border:none; border-radius:8px; background:none; cursor:pointer; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  select { background:#0b1120; border:1px solid #1f2937; color:#e2e8f0; border-radius:8px; padding:7px; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:9px 14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .accent { background:var(--accent); color:#0b1120; border:none; font-weight:600; }
+  #preview { border-radius:12px; overflow:hidden; border:1px solid #1f2937; }
+  #preview svg { display:block; width:100%; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:12px; padding:14px; overflow:auto; font-family:monospace; color:#7dd3fc; font-size:.78rem; max-height:220px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>SVG Wave Generator</h1>
+  <div class="panel">
+    <div class="ctl">
+      <div><label>Start color</label><input type="color" id="c1" value="#38bdf8"></div>
+      <div><label>End color</label><input type="color" id="c2" value="#7c3aed"></div>
+      <div><label>Layers <span id="lv">4</span></label><input type="range" id="layers" min="1" max="6" value="4"></div>
+      <div><label>Amplitude <span id="av">40</span></label><input type="range" id="amp" min="5" max="120" value="40"></div>
+      <div><label>Wavelength <span id="wv">2</span></label><input type="range" id="freq" min="1" max="6" value="2"></div>
+      <div><label>Width</label><select id="w"><option>1200</option><option>1440</option><option>800</option></select></div>
+    </div>
+    <div style="margin-top:16px">
+      <button id="regen" class="accent">Randomize phases</button>
+      <button id="copy">Copy SVG</button>
+      <button id="dl">Download SVG</button>
+    </div>
+  </div>
+  <div class="panel"><div id="preview"></div></div>
+  <div class="panel"><pre id="code"></pre></div>
+</div>
+<script>
+function hexToRgb(h){ h=h.replace('#',''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function toHex(r){ return '#'+r.map(v=>Math.round(v).toString(16).padStart(2,'0')).join(''); }
+function mix(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+let phases=[];
+function wavePath(W,H,baseY,amp,cycles,phase){
+  const pts=[]; const steps=cycles*2;
+  for(let i=0;i<=steps;i++){
+    const x=W*i/steps;
+    const y=baseY+Math.sin((i/steps)*cycles*Math.PI*2+phase)*amp;
+    pts.push([x,y]);
+  }
+  // smooth-ish path using quadratic between points
+  let d=`M0,${H} L0,${pts[0][1].toFixed(1)} `;
+  for(let i=0;i<pts.length-1;i++){
+    const xc=(pts[i][0]+pts[i+1][0])/2, yc=(pts[i][1]+pts[i+1][1])/2;
+    d+=`Q${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)} ${xc.toFixed(1)},${yc.toFixed(1)} `;
+  }
+  d+=`L${W},${pts[pts.length-1][1].toFixed(1)} L${W},${H} Z`;
+  return d;
+}
+function build(){
+  const W=parseInt(document.getElementById('w').value), H=320;
+  const n=parseInt(document.getElementById('layers').value);
+  const amp=parseInt(document.getElementById('amp').value);
+  const cycles=parseInt(document.getElementById('freq').value);
+  const c1=hexToRgb(document.getElementById('c1').value), c2=hexToRgb(document.getElementById('c2').value);
+  document.getElementById('lv').textContent=n;
+  document.getElementById('av').textContent=amp;
+  document.getElementById('wv').textContent=cycles;
+  while(phases.length<n) phases.push(Math.random()*Math.PI*2);
+  let paths='';
+  for(let i=0;i<n;i++){
+    const t=n===1?0:i/(n-1);
+    const col=toHex(mix(c1,c2,t));
+    const baseY=H*0.35 + (H*0.5)*(i/Math.max(1,n-1));
+    const a=amp*(1-i*0.12);
+    paths+=`  <path fill="${col}" d="${wavePath(W,H,baseY,a,cycles,phases[i])}"/>\n`;
+  }
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">\n${paths}</svg>`;
+  document.getElementById('preview').innerHTML=svg;
+  document.getElementById('code').textContent=svg;
+  return svg;
+}
+['c1','c2','layers','amp','freq','w'].forEach(id=>document.getElementById(id).addEventListener('input',build));
+document.getElementById('regen').onclick=()=>{ phases=[]; build(); };
+document.getElementById('copy').onclick=function(){ navigator.clipboard.writeText(document.getElementById('code').textContent); const o=this.textContent; this.textContent='Copied!'; setTimeout(()=>this.textContent=o,900); };
+document.getElementById('dl').onclick=()=>{ const blob=new Blob([build()],{type:'image/svg+xml'}); const a=document.createElement('a'); a.download='wave.svg'; a.href=URL.createObjectURL(blob); a.click(); };
+build();
+</script>
+</body>
+</html>

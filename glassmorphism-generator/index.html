@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glassmorphism Generator</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: .85rem; margin: 14px 0 6px; color: #94a3b8; }
+  .val { float: right; color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 100%; height: 36px; border: none; background: none; }
+  .stage {
+    min-height: 340px; border-radius: 12px; padding: 30px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="%23f472b6"/><stop offset="0.5" stop-color="%238b5cf6"/><stop offset="1" stop-color="%2338bdf8"/></linearGradient></defs><rect width="400" height="400" fill="url(%23g)"/><circle cx="90" cy="300" r="70" fill="%23fbbf24" opacity="0.8"/><circle cx="320" cy="80" r="50" fill="%2334d399" opacity="0.8"/></svg>');
+    background-size: cover; display: flex; align-items: center; justify-content: center;
+  }
+  .glass {
+    width: 260px; height: 200px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 1.1rem;
+  }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .85rem; margin-top: 14px; overflow-x:auto; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Glassmorphism Generator</h1>
+  <div class="row">
+    <div class="panel">
+      <label>Blur (px) <span class="val" id="blurV">8</span></label>
+      <input type="range" id="blur" min="0" max="30" value="8">
+      <label>Transparency <span class="val" id="alphaV">0.2</span></label>
+      <input type="range" id="alpha" min="0" max="1" step="0.01" value="0.2">
+      <label>Saturation (%) <span class="val" id="satV">120</span></label>
+      <input type="range" id="sat" min="0" max="300" value="120">
+      <label>Border radius (px) <span class="val" id="radV">16</span></label>
+      <input type="range" id="rad" min="0" max="40" value="16">
+      <label>Tint color</label>
+      <input type="color" id="tint" value="#ffffff">
+      <label>Border opacity <span class="val" id="bordV">0.3</span></label>
+      <input type="range" id="bord" min="0" max="1" step="0.01" value="0.3">
+    </div>
+    <div>
+      <div class="panel">
+        <div class="stage"><div class="glass" id="glass">Glass</div></div>
+      </div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const ids = ['blur','alpha','sat','rad','tint','bord'];
+  function hexToRgb(h){ const n = parseInt(h.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function render(){
+    const blur=+$('blur').value, alpha=+$('alpha').value, sat=+$('sat').value, rad=+$('rad').value, bord=+$('bord').value;
+    const [r,g,b] = hexToRgb($('tint').value);
+    $('blurV').textContent=blur; $('alphaV').textContent=alpha; $('satV').textContent=sat; $('radV').textContent=rad; $('bordV').textContent=bord;
+    const bg = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    const filter = `blur(${blur}px) saturate(${sat}%)`;
+    const border = `1px solid rgba(255, 255, 255, ${bord})`;
+    const el = $('glass');
+    el.style.background = bg;
+    el.style.backdropFilter = filter; el.style.webkitBackdropFilter = filter;
+    el.style.borderRadius = rad+'px';
+    el.style.border = border;
+    el.style.boxShadow = '0 8px 32px rgba(0,0,0,0.25)';
+    $('css').textContent = `background: ${bg};\nbackdrop-filter: ${filter};\n-webkit-backdrop-filter: ${filter};\nborder-radius: ${rad}px;\nborder: ${border};\nbox-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);`;
+  }
+  ids.forEach(i=>$(i).addEventListener('input',render));
+  $('copy').addEventListener('click',()=>navigator.clipboard.writeText($('css').textContent).then(()=>{const b=$('copy'),t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}));
+  render();
+</script>
+</body>
+</html>

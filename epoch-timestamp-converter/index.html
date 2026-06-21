@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epoch Timestamp Converter</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:720px; margin:0 auto; }
+  h1,h2 { font-weight:600; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .now { font-family:ui-monospace,monospace; font-size:22px; color:var(--accent); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input,select { padding:10px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; font-family:ui-monospace,monospace; }
+  input { flex:1; min-width:180px; }
+  button.copy { background:#1f2937; color:#e2e8f0; border:1px solid #334155; border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button.copy:hover { border-color:var(--accent); }
+  table { width:100%; border-collapse:collapse; margin-top:6px; }
+  td { padding:8px 10px; border-bottom:1px solid #1f2937; font-size:14px; }
+  td.k { color:#94a3b8; width:40%; }
+  td.v { font-family:ui-monospace,monospace; color:var(--accent); }
+  .err { color:#f87171; font-size:13px; min-height:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Epoch Timestamp Converter</h1>
+
+  <div class="panel">
+    <h2>Current Unix time</h2>
+    <div class="row">
+      <span class="now" id="now"></span>
+      <button class="copy" id="copyNow">copy</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Timestamp → date</h2>
+    <div class="row">
+      <input id="ts" type="text" placeholder="seconds or milliseconds">
+      <button class="copy" id="useNow">use now</button>
+    </div>
+    <div class="err" id="tsErr"></div>
+    <table id="tsOut"></table>
+  </div>
+
+  <div class="panel">
+    <h2>Date → timestamp</h2>
+    <div class="row">
+      <input id="dt" type="datetime-local" step="1">
+      <select id="dtZone"><option value="local">Local</option><option value="utc">UTC</option></select>
+    </div>
+    <div class="err" id="dtErr"></div>
+    <table id="dtOut"></table>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function row(k,v,copy){return `<tr><td class="k">${k}</td><td class="v">${v}</td>`+(copy!==undefined?`<td><button class="copy" data-c="${copy}">copy</button></td>`:'')+`</tr>`;}
+function bindCopy(el){el.querySelectorAll('button[data-c]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(b.dataset.c));}
+
+// current
+function tick(){ $('now').textContent = Math.floor(Date.now()/1000)+' s'; }
+setInterval(tick,1000); tick();
+$('copyNow').onclick=()=>navigator.clipboard.writeText(String(Math.floor(Date.now()/1000)));
+
+// ts -> date
+function tsConvert(){
+  $('tsOut').innerHTML=''; $('tsErr').textContent='';
+  const raw=$('ts').value.trim();
+  if(raw===''){return;}
+  if(!/^-?\d+$/.test(raw)){$('tsErr').textContent='Enter an integer.';return;}
+  let n=parseInt(raw,10);
+  let ms = raw.length>=13 ? n : n*1000; // heuristic: 13+ digits = ms
+  const d=new Date(ms);
+  if(isNaN(d)){$('tsErr').textContent='Out of range.';return;}
+  $('tsOut').innerHTML =
+    row('Interpreted as', raw.length>=13?'milliseconds':'seconds') +
+    row('Local', d.toString(), d.toString()) +
+    row('UTC', d.toUTCString(), d.toUTCString()) +
+    row('ISO 8601', d.toISOString(), d.toISOString());
+  bindCopy($('tsOut'));
+}
+$('ts').addEventListener('input',tsConvert);
+$('useNow').onclick=()=>{$('ts').value=Math.floor(Date.now()/1000);tsConvert();};
+
+// date -> ts
+function dtConvert(){
+  $('dtOut').innerHTML=''; $('dtErr').textContent='';
+  const v=$('dt').value;
+  if(!v){return;}
+  let d;
+  if($('dtZone').value==='utc'){ d=new Date(v+'Z'); }
+  else { d=new Date(v); }
+  if(isNaN(d)){$('dtErr').textContent='Invalid date.';return;}
+  const sec=Math.floor(d.getTime()/1000);
+  $('dtOut').innerHTML =
+    row('Unix (seconds)', sec, sec) +
+    row('Unix (ms)', d.getTime(), d.getTime()) +
+    row('ISO 8601', d.toISOString(), d.toISOString());
+  bindCopy($('dtOut'));
+}
+$('dt').addEventListener('input',dtConvert);
+$('dtZone').addEventListener('change',dtConvert);
+// seed datetime-local with now (local)
+(function(){const d=new Date();const p=n=>String(n).padStart(2,'0');
+  $('dt').value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  dtConvert();
+})();
+</script>
+</body>
+</html>

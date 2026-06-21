@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock JSON Generator</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  label{font-size:.9rem;}
+  input[type=text],input[type=number],select{background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px;}
+  input[type=text]{flex:1;min-width:120px;}
+  button{background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600;}
+  button:hover{background:var(--accent);color:#04222e;}
+  .copy{background:var(--accent);color:#04222e;border:none;}
+  .del{background:#3b1d1d;border-color:#5b2a2a;}
+  textarea{width:100%;min-height:240px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:.9rem;resize:vertical;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Mock JSON Generator</h1>
+  <div class="panel">
+    <h3 style="margin-top:0">Schema</h3>
+    <div id="fields"></div>
+    <div class="row">
+      <button id="add">+ Add field</button>
+      <label>Count <input type="number" id="count" value="3" min="1" max="500" style="width:80px"></label>
+      <button id="gen">Generate</button>
+      <button class="copy" id="copy">Copy JSON</button>
+    </div>
+  </div>
+  <div class="panel">
+    <textarea id="out" readonly></textarea>
+  </div>
+</div>
+<script>
+  const types=["string","number","boolean","name","email","uuid","date","id","color"];
+  const fieldsEl=document.getElementById('fields');
+  function addField(name='',type='string'){
+    const div=document.createElement('div');
+    div.className='row';
+    div.innerHTML=`<input type="text" class="fn" placeholder="field name" value="${name}">
+      <select class="ft">${types.map(t=>`<option ${t===type?'selected':''}>${t}</option>`).join('')}</select>
+      <button class="del">×</button>`;
+    div.querySelector('.del').onclick=()=>div.remove();
+    fieldsEl.appendChild(div);
+  }
+  const first=["Liam","Olivia","Noah","Emma","Ava","Ethan","Sophia","Mason"];
+  const last=["Smith","Johnson","Brown","Garcia","Miller","Davis","Lopez","Lee"];
+  const ri=a=>a[Math.floor(Math.random()*a.length)];
+  const rn=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  function uuid(){return crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx'.replace(/x/g,()=>rn(0,15).toString(16));}
+  let idc=1;
+  function val(type){
+    switch(type){
+      case 'string':return ri(["lorem","ipsum","dolor","sit","amet","alpha","beta"]);
+      case 'number':return rn(1,1000);
+      case 'boolean':return Math.random()<0.5;
+      case 'name':return `${ri(first)} ${ri(last)}`;
+      case 'email':return `${ri(first).toLowerCase()}${rn(1,99)}@example.com`;
+      case 'uuid':return uuid();
+      case 'date':return new Date(Date.now()-rn(0,1e10)).toISOString().slice(0,10);
+      case 'id':return idc++;
+      case 'color':return '#'+rn(0,0xffffff).toString(16).padStart(6,'0');
+    }
+  }
+  function gen(){
+    idc=1;
+    const defs=[...fieldsEl.querySelectorAll('.row')].map(r=>({
+      name:r.querySelector('.fn').value.trim()||'field',
+      type:r.querySelector('.ft').value
+    }));
+    const n=Math.max(1,Math.min(500,parseInt(document.getElementById('count').value)||1));
+    const arr=[];
+    for(let i=0;i<n;i++){
+      const o={};
+      defs.forEach(d=>o[d.name]=val(d.type));
+      arr.push(o);
+    }
+    document.getElementById('out').value=JSON.stringify(arr,null,2);
+  }
+  document.getElementById('add').onclick=()=>addField();
+  document.getElementById('gen').onclick=gen;
+  document.getElementById('copy').onclick=async function(){
+    await navigator.clipboard.writeText(document.getElementById('out').value);
+    const t=this.textContent;this.textContent='Copied!';setTimeout(()=>this.textContent=t,1200);
+  };
+  addField('id','id'); addField('name','name'); addField('email','email');
+  gen();
+</script>
+</body>
+</html>

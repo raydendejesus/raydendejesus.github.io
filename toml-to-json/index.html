@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOML to JSON</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>TOML to JSON</h1>
+<p class="sub">Convert basic TOML (tables, arrays, key/values) to JSON.</p>
+<div class="toolbar">
+  <button id="convert">Convert</button>
+  <button id="copy" class="ghost">Copy</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col"><div class="colhead">TOML input</div>
+    <textarea id="input" spellcheck="false" placeholder='title = "Example"&#10;[owner]&#10;name = "Alice"&#10;ports = [8000, 8001]'></textarea></div>
+  <div class="col"><div class="colhead">JSON output</div><pre id="output"></pre></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+function parseValue(s){
+  s=s.trim();
+  if(s==='') throw new Error('empty value');
+  if(s[0]==='"'){ return parseBasicString(s); }
+  if(s[0]==="'"){ if(!s.endsWith("'")) throw new Error('unterminated literal string'); return s.slice(1,-1); }
+  if(s[0]==='['){ return parseArray(s); }
+  if(s[0]==='{'){ return parseInlineTable(s); }
+  if(s==='true') return true;
+  if(s==='false') return false;
+  if(/^[+-]?\d{4}-\d{2}-\d{2}([Tt ].*)?$/.test(s)) return s; // datetime as string
+  if(/^[+-]?(0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+)$/.test(s)){ return Number(s.replace(/_/g,'')); }
+  if(/^[+-]?(\d[\d_]*)(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?$/.test(s)){ const n=Number(s.replace(/_/g,'')); if(!isNaN(n)) return n; }
+  if(s==='inf'||s==='+inf') return Infinity; if(s==='-inf') return -Infinity;
+  throw new Error('cannot parse value: '+s);
+}
+function parseBasicString(s){
+  if(!s.endsWith('"')||s.length<2) throw new Error('unterminated string');
+  const body=s.slice(1,-1); let out=''; for(let i=0;i<body.length;i++){
+    if(body[i]==='\\'){ const n=body[++i]; const map={n:'\n',t:'\t',r:'\r','"':'"','\\':'\\',b:'\b',f:'\f','/':'/'};
+      if(n==='u'){ out+=String.fromCharCode(parseInt(body.substr(i+1,4),16)); i+=4; }
+      else if(map[n]!==undefined) out+=map[n];
+      else throw new Error('bad escape \\'+n);
+    } else out+=body[i];
+  }
+  return out;
+}
+// split top-level by comma, respecting quotes/brackets/braces
+function splitTop(s){
+  const parts=[]; let depth=0,buf='',q=null;
+  for(let i=0;i<s.length;i++){ const c=s[i];
+    if(q){ buf+=c; if(c==='\\'){buf+=s[++i];continue;} if(c===q)q=null; continue; }
+    if(c==='"'||c==="'"){q=c;buf+=c;continue;}
+    if(c==='['||c==='{'){depth++;buf+=c;continue;}
+    if(c===']'||c==='}'){depth--;buf+=c;continue;}
+    if(c===','&&depth===0){ parts.push(buf); buf=''; continue; }
+    buf+=c;
+  }
+  if(buf.trim()!=='') parts.push(buf);
+  return parts;
+}
+function parseArray(s){
+  s=s.trim(); if(!s.endsWith(']')) throw new Error('unterminated array');
+  const inner=s.slice(1,-1).trim();
+  if(inner==='') return [];
+  return splitTop(inner).map(p=>parseValue(p.trim()));
+}
+function parseInlineTable(s){
+  s=s.trim(); if(!s.endsWith('}')) throw new Error('unterminated inline table');
+  const inner=s.slice(1,-1).trim(); const obj={};
+  if(inner==='') return obj;
+  splitTop(inner).forEach(pair=>{
+    const eq=findEq(pair); if(eq<0) throw new Error('bad inline pair: '+pair);
+    const k=parseKey(pair.slice(0,eq).trim()); obj[k[k.length-1]]=parseValue(pair.slice(eq+1).trim());
+  });
+  return obj;
+}
+function parseKey(s){ // dotted keys
+  const parts=[]; let i=0;
+  while(i<s.length){
+    while(i<s.length&&/\s/.test(s[i]))i++;
+    if(s[i]==='"'||s[i]==="'"){ const q=s[i]; let j=i+1; let v=''; while(j<s.length&&s[j]!==q){if(s[j]==='\\'){v+=s[j+1];j+=2;continue;}v+=s[j++];} parts.push(v); i=j+1; }
+    else{ let j=i; while(j<s.length&&s[j]!=='.'){j++;} parts.push(s.slice(i,j).trim()); i=j; }
+    while(i<s.length&&/\s/.test(s[i]))i++;
+    if(s[i]==='.') i++;
+  }
+  return parts.filter(p=>p!=='');
+}
+function findEq(line){ // first top-level = not inside quotes
+  let q=null; for(let i=0;i<line.length;i++){ const c=line[i]; if(q){if(c==='\\'){i++;continue;}if(c===q)q=null;continue;} if(c==='"'||c==="'")q=c; else if(c==='=')return i; }
+  return -1;
+}
+function setPath(root, keys, value){
+  let cur=root;
+  for(let i=0;i<keys.length-1;i++){ const k=keys[i]; if(!(k in cur)) cur[k]={}; else if(typeof cur[k]!=='object'||Array.isArray(cur[k])) throw new Error('key conflict at '+k); cur=cur[k]; }
+  const last=keys[keys.length-1];
+  if(last in cur) throw new Error('duplicate key '+last);
+  cur[last]=value;
+}
+function ensureTable(root, keys, isArray){
+  let cur=root;
+  for(let i=0;i<keys.length;i++){ const k=keys[i]; const last=i===keys.length-1;
+    if(last&&isArray){ if(!(k in cur)) cur[k]=[]; if(!Array.isArray(cur[k])) throw new Error('conflict at '+k); const t={}; cur[k].push(t); return t; }
+    if(!(k in cur)) cur[k]={};
+    if(Array.isArray(cur[k])) cur=cur[k][cur[k].length-1]; else cur=cur[k];
+  }
+  return cur;
+}
+function toml2obj(text){
+  const root={}; let ctx=root;
+  const rawLines=text.split('\n'); let buf=''; let lines=[];
+  // join multiline arrays/tables naively by bracket balance
+  for(let raw of rawLines){ buf+=(buf?'\n':'')+raw; const test=stripComment(buf);
+    if(balanced(test)){ lines.push(buf); buf=''; } }
+  if(buf.trim()) lines.push(buf);
+  for(let ln=0;ln<lines.length;ln++){
+    let line=stripComment(lines[ln]).trim();
+    if(line==='') continue;
+    if(line[0]==='['){
+      const arr=line.startsWith('[[');
+      const close=arr?']]':']';
+      if(!line.endsWith(close)) throw new Error('Line '+(ln+1)+': bad table header');
+      const name=line.slice(arr?2:1, line.length-(arr?2:1)).trim();
+      const keys=parseKey(name);
+      ctx=ensureTable(root,keys,arr);
+      continue;
+    }
+    const eq=findEq(line);
+    if(eq<0) throw new Error('Line '+(ln+1)+': expected key = value');
+    const keys=parseKey(line.slice(0,eq).trim());
+    let val;
+    try{ val=parseValue(line.slice(eq+1).trim()); }
+    catch(e){ throw new Error('Line '+(ln+1)+': '+e.message); }
+    setPath(ctx,keys,val);
+  }
+  return root;
+}
+function stripComment(line){ let q=null; for(let i=0;i<line.length;i++){const c=line[i]; if(q){if(c==='\\'){i++;continue;}if(c===q)q=null;continue;} if(c==='"'||c==="'")q=c; else if(c==='#') return line.slice(0,i);} return line; }
+function balanced(s){ let d=0,q=null; for(let i=0;i<s.length;i++){const c=s[i]; if(q){if(c==='\\'){i++;continue;}if(c===q)q=null;continue;} if(c==='"'||c==="'")q=c; else if(c==='['||c==='{')d++; else if(c===']'||c==='}')d--;} return d<=0&&!q; }
+function convert(){
+  const text=$('input').value;
+  if(!text.trim()){setStatus('Nothing to convert','err');$('output').textContent='';return;}
+  try{
+    const obj=toml2obj(text);
+    $('output').textContent=JSON.stringify(obj,(k,v)=>v===Infinity?'Infinity':v===-Infinity?'-Infinity':v,2);
+    setStatus('Converted','ok');
+  }catch(e){ setStatus('Error: '+e.message,'err'); $('output').textContent=''; }
+}
+$('convert').onclick=convert;
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared');};
+$('copy').onclick=async()=>{const t=$('output').textContent;if(!t){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(t);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+$('input').addEventListener('input',()=>{if($('input').value.trim())convert();});
+</script>
+</body>
+</html>

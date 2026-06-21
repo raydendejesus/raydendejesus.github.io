@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Command Reference</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:920px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:14px 18px; margin-bottom:18px; }
+  input { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:10px; padding:11px; font-size:1rem; }
+  .cat { color:#94a3b8; font-size:.78rem; text-transform:uppercase; letter-spacing:1px; margin:18px 0 8px; }
+  .item { padding:11px 14px; border:1px solid #1f2937; border-radius:12px; margin-bottom:9px; background:#0b1120; }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .cmd { font-family:ui-monospace,monospace; color:#86efac; font-size:.92rem; }
+  .desc { color:#cbd5e1; font-size:.86rem; margin-top:5px; }
+  button { background:#1f2937; color:#e2e8f0; border:none; border-radius:8px; padding:5px 10px; font-size:.78rem; cursor:pointer; flex:0 0 auto; }
+  .count { color:#64748b; font-size:.8rem; margin:6px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Git Command Reference</h1>
+  <div class="panel"><input id="q" placeholder="Search commands..." oninput="render()"></div>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+</div>
+<script>
+  var cmds = [
+    ['Setup','git config --global user.name "Name"','Set your commit author name.'],
+    ['Setup','git config --global user.email "you@example.com"','Set your commit email.'],
+    ['Setup','git init','Create a new repository in the current folder.'],
+    ['Setup','git clone <url>','Copy a remote repository locally.'],
+    ['Basics','git status','Show changed, staged, and untracked files.'],
+    ['Basics','git add <file>','Stage a file for commit (use . for all).'],
+    ['Basics','git add -p','Interactively stage chunks of changes.'],
+    ['Basics','git commit -m "message"','Commit staged changes with a message.'],
+    ['Basics','git commit -am "message"','Stage tracked files and commit in one step.'],
+    ['Basics','git diff','Show unstaged changes.'],
+    ['Basics','git diff --staged','Show staged changes to be committed.'],
+    ['Branches','git branch','List local branches.'],
+    ['Branches','git branch <name>','Create a new branch.'],
+    ['Branches','git checkout <name>','Switch to a branch.'],
+    ['Branches','git switch -c <name>','Create and switch to a new branch.'],
+    ['Branches','git merge <name>','Merge a branch into the current one.'],
+    ['Branches','git branch -d <name>','Delete a merged branch.'],
+    ['Branches','git rebase <branch>','Reapply commits on top of another branch.'],
+    ['Remotes','git remote -v','List configured remotes.'],
+    ['Remotes','git remote add origin <url>','Add a remote named origin.'],
+    ['Remotes','git fetch','Download remote changes without merging.'],
+    ['Remotes','git pull','Fetch and merge remote changes.'],
+    ['Remotes','git push','Upload commits to the remote.'],
+    ['Remotes','git push -u origin <branch>','Push and set upstream tracking.'],
+    ['History','git log --oneline','Compact one-line commit history.'],
+    ['History','git log --graph --oneline --all','Visual branch graph.'],
+    ['History','git show <commit>','Show details of a specific commit.'],
+    ['History','git blame <file>','Show who changed each line.'],
+    ['Undo','git restore <file>','Discard unstaged changes to a file.'],
+    ['Undo','git restore --staged <file>','Unstage a file (keep changes).'],
+    ['Undo','git reset --soft HEAD~1','Undo last commit, keep changes staged.'],
+    ['Undo','git reset --hard HEAD~1','Undo last commit and discard changes.'],
+    ['Undo','git revert <commit>','Create a new commit that undoes another.'],
+    ['Undo','git commit --amend','Modify the most recent commit.'],
+    ['Stash','git stash','Save uncommitted changes temporarily.'],
+    ['Stash','git stash pop','Reapply and remove the latest stash.'],
+    ['Stash','git stash list','List saved stashes.'],
+    ['Tags','git tag <name>','Create a lightweight tag.'],
+    ['Tags','git tag -a <name> -m "msg"','Create an annotated tag.'],
+    ['Tags','git push --tags','Push all tags to the remote.'],
+    ['Inspect','git reflog','Show history of HEAD movements (recovery).'],
+    ['Inspect','git clean -fd','Remove untracked files and directories.']
+  ];
+  function esc(s){ return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function render() {
+    var q = document.getElementById('q').value.toLowerCase();
+    var list = document.getElementById('list'); list.innerHTML = '';
+    var lastCat = '', n = 0;
+    cmds.forEach(function(c){
+      if (q && c[1].toLowerCase().indexOf(q) < 0 && c[2].toLowerCase().indexOf(q) < 0 && c[0].toLowerCase().indexOf(q) < 0) return;
+      n++;
+      if (c[0] !== lastCat) { var h=document.createElement('div'); h.className='cat'; h.textContent=c[0]; list.appendChild(h); lastCat=c[0]; }
+      var d = document.createElement('div'); d.className='item';
+      d.innerHTML = '<div class="head"><span class="cmd">'+esc(c[1])+'</span><button>Copy</button></div><div class="desc">'+esc(c[2])+'</div>';
+      d.querySelector('button').onclick = function(){ navigator.clipboard.writeText(c[1]); };
+      list.appendChild(d);
+    });
+    document.getElementById('count').textContent = n + ' command' + (n===1?'':'s');
+  }
+  render();
+</script>
+</body>
+</html>

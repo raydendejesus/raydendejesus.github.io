@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cubic Bezier Editor</title>
+<style>
+  :root { --accent: #38bdf8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  .row { display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start; }
+  .panel { background: #111827; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; }
+  svg { background: #0b1120; border-radius: 10px; display: block; touch-action: none; }
+  .handle { fill: var(--accent); cursor: grab; }
+  pre { background: #0b1120; border: 1px solid #1f2937; border-radius: 10px; padding: 14px; font-size: .9rem; margin-top: 14px; overflow-x:auto; }
+  button { background: var(--accent); color: #0b1120; border: none; font-weight: 600; padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.1); }
+  .demo { height: 120px; background: #0b1120; border-radius: 10px; position: relative; margin-bottom: 14px; overflow: hidden; }
+  .ball { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); position: absolute; top: 42px; left: 8px; }
+  select { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; width:100%; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin:14px 0 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Cubic Bezier Editor</h1>
+  <div class="row">
+    <div class="panel">
+      <svg id="svg" width="320" height="320" viewBox="0 0 320 320">
+        <line id="l1" stroke="#475569" stroke-width="2"></line>
+        <line id="l2" stroke="#475569" stroke-width="2"></line>
+        <path id="curve" fill="none" stroke="var(--accent)" stroke-width="3"></path>
+        <circle id="h1" class="handle" r="9"></circle>
+        <circle id="h2" class="handle" r="9"></circle>
+      </svg>
+      <label>Presets</label>
+      <select id="preset">
+        <option value="">custom</option>
+        <option value="0.25,0.1,0.25,1">ease</option>
+        <option value="0,0,1,1">linear</option>
+        <option value="0.42,0,1,1">ease-in</option>
+        <option value="0,0,0.58,1">ease-out</option>
+        <option value="0.42,0,0.58,1">ease-in-out</option>
+        <option value="0.68,-0.55,0.27,1.55">back</option>
+      </select>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="demo"><div class="ball" id="ball"></div></div>
+        <button id="play">Play animation</button>
+      </div>
+      <pre id="css"></pre>
+      <button id="copy">Copy CSS</button>
+    </div>
+  </div>
+</div>
+<script>
+  const PAD = 40, SIZE = 240; // drawing area inside 320 svg
+  const X0 = PAD, Y0 = PAD + SIZE; // bottom-left = (0,0)
+  // points stored in 0..1 (x), y can exceed for overshoot
+  let p1 = {x:0.25,y:0.1}, p2 = {x:0.25,y:1};
+  const $ = id => document.getElementById(id);
+  function toSvg(p){ return { x: X0 + p.x*SIZE, y: Y0 - p.y*SIZE }; }
+  function fromSvg(sx,sy){ return { x: (sx-X0)/SIZE, y: (Y0-sy)/SIZE }; }
+  function draw(){
+    const a = toSvg(p1), b = toSvg(p2);
+    const start = toSvg({x:0,y:0}), end = toSvg({x:1,y:1});
+    $('curve').setAttribute('d', `M ${start.x} ${start.y} C ${a.x} ${a.y}, ${b.x} ${b.y}, ${end.x} ${end.y}`);
+    $('l1').setAttribute('x1',start.x); $('l1').setAttribute('y1',start.y); $('l1').setAttribute('x2',a.x); $('l1').setAttribute('y2',a.y);
+    $('l2').setAttribute('x1',end.x); $('l2').setAttribute('y1',end.y); $('l2').setAttribute('x2',b.x); $('l2').setAttribute('y2',b.y);
+    $('h1').setAttribute('cx',a.x); $('h1').setAttribute('cy',a.y);
+    $('h2').setAttribute('cx',b.x); $('h2').setAttribute('cy',b.y);
+    const f = n => (Math.round(n*100)/100);
+    const bez = `cubic-bezier(${f(p1.x)}, ${f(p1.y)}, ${f(p2.x)}, ${f(p2.y)})`;
+    $('css').textContent = `transition-timing-function: ${bez};\nanimation-timing-function: ${bez};`;
+    $('ball').style.transitionTimingFunction = bez;
+    window._bez = bez;
+  }
+  let drag = null;
+  const svg = $('svg');
+  function pt(e){ const r = svg.getBoundingClientRect(); const cx = (e.touches?e.touches[0].clientX:e.clientX); const cy = (e.touches?e.touches[0].clientY:e.clientY); return { x:(cx-r.left)*320/r.width, y:(cy-r.top)*320/r.height }; }
+  function down(which){ return e => { drag = which; e.preventDefault(); }; }
+  $('h1').addEventListener('mousedown', down('p1')); $('h2').addEventListener('mousedown', down('p2'));
+  $('h1').addEventListener('touchstart', down('p1')); $('h2').addEventListener('touchstart', down('p2'));
+  function move(e){
+    if(!drag) return;
+    const s = pt(e); const np = fromSvg(s.x, s.y);
+    np.x = Math.max(0, Math.min(1, np.x)); // x clamped to 0..1
+    (drag==='p1'?p1:p2).x = np.x; (drag==='p1'?p1:p2).y = np.y;
+    $('preset').value = ''; draw();
+  }
+  window.addEventListener('mousemove', move); window.addEventListener('touchmove', move, {passive:false});
+  window.addEventListener('mouseup', ()=>drag=null); window.addEventListener('touchend', ()=>drag=null);
+  $('preset').addEventListener('change', e => {
+    if(!e.target.value) return;
+    const v = e.target.value.split(',').map(Number);
+    p1 = {x:v[0],y:v[1]}; p2 = {x:v[2],y:v[3]}; draw();
+  });
+  let on = false;
+  $('play').addEventListener('click', () => {
+    const ball = $('ball');
+    ball.style.transition = 'none'; ball.style.left = '8px';
+    void ball.offsetWidth;
+    ball.style.transition = `left 1s ${window._bez}`;
+    ball.style.left = (document.querySelector('.demo').clientWidth - 44) + 'px';
+  });
+  $('copy').addEventListener('click', () => {
+    navigator.clipboard.writeText($('css').textContent).then(() => {
+      const b = $('copy'), t = b.textContent; b.textContent = 'Copied!'; setTimeout(()=>b.textContent=t,1200);
+    });
+  });
+  draw();
+</script>
+</body>
+</html>

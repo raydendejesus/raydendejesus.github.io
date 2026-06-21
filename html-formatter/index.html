@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML Formatter</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{font-size:13px;color:#94a3b8;margin-bottom:6px;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>HTML Formatter</h1>
+<p class="sub">Beautify with indentation or minify HTML.</p>
+<div class="toolbar">
+  <button id="beautify">Beautify</button>
+  <button id="minify" class="ghost">Minify</button>
+  <button id="copy" class="ghost">Copy</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col"><div class="colhead">HTML input</div>
+    <textarea id="input" spellcheck="false" placeholder="<div><p>Hello</p></div>"></textarea></div>
+  <div class="col"><div class="colhead">Output</div><pre id="output"></pre></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(m,cls){const s=$('status');s.textContent=m;s.className='status '+(cls||'');}
+const VOID=new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+const INLINE_RAW=new Set(['script','style','pre','textarea']);
+function tokenizeHTML(html){
+  const tokens=[]; let i=0;
+  while(i<html.length){
+    if(html[i]==='<'){
+      if(html.startsWith('<!--',i)){ const e=html.indexOf('-->',i); const end=e<0?html.length:e+3; tokens.push({type:'comment',raw:html.slice(i,end)}); i=end; continue; }
+      const gt=html.indexOf('>',i); const end=gt<0?html.length:gt+1; const raw=html.slice(i,end);
+      let name=(raw.match(/^<\/?\s*([a-zA-Z0-9:-]+)/)||[])[1]||'';
+      name=name.toLowerCase();
+      const closing=/^<\//.test(raw);
+      const selfClose=/\/>\s*$/.test(raw)||VOID.has(name);
+      // raw element content
+      if(!closing && INLINE_RAW.has(name) && !selfClose){
+        const closeTag=new RegExp('</\\s*'+name+'\\s*>','i');
+        const rest=html.slice(end); const m=rest.match(closeTag);
+        const contentEnd=m?end+m.index:html.length;
+        const content=html.slice(end,contentEnd);
+        tokens.push({type:'raw',name,open:raw,content,close:m?m[0]:''});
+        i=m?contentEnd+m[0].length:html.length; continue;
+      }
+      tokens.push({type:'tag',name,raw,closing,selfClose});
+      i=end; continue;
+    }
+    const lt=html.indexOf('<',i); const end=lt<0?html.length:lt; const text=html.slice(i,end);
+    if(text.trim()) tokens.push({type:'text',raw:text.trim()});
+    i=end;
+  }
+  return tokens;
+}
+function beautify(html){
+  const tokens=tokenizeHTML(html); let out=''; let depth=0;
+  const pad=()=>'  '.repeat(Math.max(depth,0));
+  for(const t of tokens){
+    if(t.type==='tag'){
+      if(t.closing){ depth=Math.max(depth-1,0); out+=pad()+t.raw+'\n'; }
+      else{ out+=pad()+t.raw+'\n'; if(!t.selfClose) depth++; }
+    }else if(t.type==='raw'){
+      out+=pad()+t.open+'\n';
+      const inner=t.content.replace(/\r/g,'').split('\n').map(l=>l.trim()).filter(l=>l.length);
+      inner.forEach(l=>out+=pad()+'  '+l+'\n');
+      out+=pad()+t.close+'\n';
+    }else if(t.type==='comment'){ out+=pad()+t.raw+'\n'; }
+    else if(t.type==='text'){ out+=pad()+t.raw+'\n'; }
+  }
+  return out.replace(/\n+$/,'');
+}
+function minify(html){
+  return html.replace(/<!--(?!\[if)[\s\S]*?-->/g,'').replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').trim();
+}
+function run(fn){
+  const html=$('input').value;
+  if(!html.trim()){setStatus('Nothing to process','err');$('output').textContent='';return;}
+  try{ $('output').textContent=fn(html); setStatus('Done','ok'); }
+  catch(e){ setStatus('Error: '+e.message,'err'); }
+}
+$('beautify').onclick=()=>run(beautify);
+$('minify').onclick=()=>run(minify);
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared');};
+$('copy').onclick=async()=>{const t=$('output').textContent;if(!t){setStatus('Nothing to copy','err');return;}try{await navigator.clipboard.writeText(t);setStatus('Copied!','ok');}catch(e){setStatus('Copy failed','err');}};
+</script>
+</body>
+</html>

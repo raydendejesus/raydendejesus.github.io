@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAML to JSON</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:#e2e8f0;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    display:flex;flex-direction:column;align-items:center;padding:24px;}
+  a.back{position:fixed;top:16px;left:16px;color:var(--accent);text-decoration:none;font-size:14px;}
+  a.back:hover{text-decoration:underline;}
+  h1{font-size:24px;margin:30px 0 6px;}
+  .sub{color:#94a3b8;font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:min(96vw,980px);}
+  @media(max-width:740px){.grid{grid-template-columns:1fr;}}
+  .col{display:flex;flex-direction:column;}
+  .colhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+    font-size:13px;color:#94a3b8;}
+  textarea,pre{height:50vh;min-height:300px;border-radius:12px;border:1px solid #1f2937;
+    background:#0b1120;color:#e2e8f0;padding:14px;font-size:13px;outline:none;
+    font-family:ui-monospace,"Cascadia Code",Consolas,monospace;line-height:1.5;}
+  textarea{resize:vertical;width:100%;}
+  pre{margin:0;overflow:auto;white-space:pre;tab-size:2;}
+  textarea:focus{border-color:var(--accent);}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;justify-content:center;}
+  button{background:var(--accent);color:#082f49;border:none;border-radius:10px;padding:10px 16px;
+    font-weight:600;font-size:14px;cursor:pointer;}
+  button.ghost{background:#1f2937;color:#e2e8f0;}
+  button:hover{filter:brightness(1.1);}
+  .status{min-height:22px;font-size:14px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .ok{color:#4ade80;}.err{color:#f87171;}
+</style>
+</head>
+<body>
+<a class="back" href="../">← back</a>
+<h1>YAML to JSON</h1>
+<p class="sub">Convert common YAML to JSON. Supports nesting, lists, scalars, comments.</p>
+<div class="toolbar">
+  <button id="convert">Convert</button>
+  <button id="copy" class="ghost">Copy output</button>
+  <button id="clear" class="ghost">Clear</button>
+</div>
+<div class="status" id="status">Ready</div>
+<div class="grid">
+  <div class="col">
+    <div class="colhead"><span>YAML</span></div>
+    <textarea id="input" spellcheck="false" placeholder="name: test&#10;tags:&#10;  - a&#10;  - b&#10;nested:&#10;  k: 1"></textarea>
+  </div>
+  <div class="col">
+    <div class="colhead"><span>JSON</span></div>
+    <pre id="output"></pre>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function setStatus(msg,ok){$('status').textContent=msg;$('status').className='status '+(ok?'ok':'err');}
+
+function parseScalar(s){
+  s=s.trim();
+  if(s==='')return null;
+  if((s.startsWith('"')&&s.endsWith('"'))||(s.startsWith("'")&&s.endsWith("'")))
+    return s.slice(1,-1);
+  if(s==='null'||s==='~')return null;
+  if(s==='true')return true;
+  if(s==='false')return false;
+  if(/^-?\d+$/.test(s))return parseInt(s,10);
+  if(/^-?\d*\.\d+$/.test(s))return parseFloat(s);
+  // inline flow array/object
+  if(s.startsWith('[')&&s.endsWith(']')){
+    const inner=s.slice(1,-1).trim();
+    if(!inner)return [];
+    return splitFlow(inner).map(parseScalar);
+  }
+  if(s.startsWith('{')&&s.endsWith('}')){
+    const inner=s.slice(1,-1).trim();const o={};
+    if(!inner)return o;
+    for(const part of splitFlow(inner)){
+      const i=part.indexOf(':');
+      o[parseScalar(part.slice(0,i))]=parseScalar(part.slice(i+1));
+    }
+    return o;
+  }
+  return s;
+}
+function splitFlow(s){
+  const out=[];let depth=0,cur='',q='';
+  for(const ch of s){
+    if(q){cur+=ch;if(ch===q)q='';continue;}
+    if(ch==='"'||ch==="'"){q=ch;cur+=ch;continue;}
+    if(ch==='['||ch==='{')depth++;
+    if(ch===']'||ch==='}')depth--;
+    if(ch===','&&depth===0){out.push(cur);cur='';continue;}
+    cur+=ch;
+  }
+  if(cur.trim())out.push(cur);
+  return out;
+}
+function stripComment(line){
+  let q='';let out='';
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(q){out+=ch;if(ch===q)q='';continue;}
+    if(ch==='"'||ch==="'"){q=ch;out+=ch;continue;}
+    if(ch==='#'&&(i===0||line[i-1]===' '||line[i-1]==='\t'))break;
+    out+=ch;
+  }
+  return out;
+}
+
+function parseYaml(text){
+  // Build list of {indent, content} skipping blanks/comments/doc markers
+  const lines=[];
+  for(let raw of text.split(/\r?\n/)){
+    const noc=stripComment(raw);
+    if(!noc.trim())continue;
+    if(/^---\s*$/.test(noc.trim())||/^\.\.\.\s*$/.test(noc.trim()))continue;
+    const indent=noc.length-noc.replace(/^ +/,'').length;
+    lines.push({indent,content:noc.trim(),raw});
+  }
+  let idx=0;
+  function parseBlock(minIndent){
+    if(idx>=lines.length)return null;
+    const first=lines[idx];
+    if(first.content.startsWith('- '))return parseList(first.indent);
+    return parseMap(first.indent);
+  }
+  function parseList(indent){
+    const arr=[];
+    while(idx<lines.length&&lines[idx].indent===indent&&lines[idx].content.startsWith('- ')){
+      const line=lines[idx];
+      let rest=line.content.slice(2).trim();
+      if(rest===''){
+        idx++;arr.push(parseBlock(indent+1));
+      } else if(/^[\w".'-][^:]*:(\s|$)/.test(rest)&&rest.indexOf(': ')!==-1||/:$/.test(rest)){
+        // item is a map starting on same line; treat the dash content as virtual line
+        const ci=findColon(rest);
+        const key=parseScalar(rest.slice(0,ci));
+        const val=rest.slice(ci+1).trim();
+        const obj={};
+        idx++;
+        if(val===''){
+          obj[key]=parseChildOrNull(indent);
+        } else {
+          obj[key]=parseScalar(val);
+        }
+        // continue same map for deeper keys
+        while(idx<lines.length&&lines[idx].indent>indent&&!lines[idx].content.startsWith('- ')){
+          const ml=lines[idx];const mc=findColon(ml.content);
+          const k=parseScalar(ml.content.slice(0,mc));const v=ml.content.slice(mc+1).trim();
+          idx++;
+          obj[k]=v===''?parseChildOrNull(ml.indent):parseScalar(v);
+        }
+        arr.push(obj);
+      } else {
+        idx++;arr.push(parseScalar(rest));
+      }
+    }
+    return arr;
+  }
+  function parseMap(indent){
+    const obj={};
+    while(idx<lines.length&&lines[idx].indent===indent&&!lines[idx].content.startsWith('- ')){
+      const line=lines[idx];
+      const ci=findColon(line.content);
+      if(ci===-1)throw new Error('Bad line: '+line.content);
+      const key=parseScalar(line.content.slice(0,ci));
+      const val=line.content.slice(ci+1).trim();
+      idx++;
+      obj[key]=val===''?parseChildOrNull(indent):parseScalar(val);
+    }
+    return obj;
+  }
+  function parseChildOrNull(parentIndent){
+    if(idx<lines.length&&lines[idx].indent>parentIndent)return parseBlock(parentIndent+1);
+    // a list can be at same indent as parent key
+    if(idx<lines.length&&lines[idx].indent===parentIndent&&lines[idx].content.startsWith('- '))
+      return parseList(parentIndent);
+    return null;
+  }
+  function findColon(s){
+    let q='';
+    for(let i=0;i<s.length;i++){
+      const ch=s[i];
+      if(q){if(ch===q)q='';continue;}
+      if(ch==='"'||ch==="'"){q=ch;continue;}
+      if(ch===':'&&(i+1>=s.length||s[i+1]===' '))return i;
+    }
+    return -1;
+  }
+  if(lines.length===0)return null;
+  const result=parseBlock(lines[0].indent);
+  if(idx<lines.length)throw new Error('Unexpected line: '+lines[idx].content);
+  return result;
+}
+
+function convert(){
+  const raw=$('input').value;
+  if(!raw.trim())throw new Error('Input is empty');
+  return JSON.stringify(parseYaml(raw),null,2);
+}
+$('convert').onclick=()=>{
+  try{$('output').textContent=convert();setStatus('Converted ✓',true);}
+  catch(e){setStatus('Error: '+e.message,false);}
+};
+$('copy').onclick=async()=>{
+  const text=$('output').textContent;
+  if(!text){setStatus('Nothing to copy',false);return;}
+  try{await navigator.clipboard.writeText(text);setStatus('Copied ✓',true);}
+  catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);
+    ta.select();try{document.execCommand('copy');setStatus('Copied ✓',true);}catch(_){setStatus('Copy failed',false);}document.body.removeChild(ta);}
+};
+$('clear').onclick=()=>{$('input').value='';$('output').textContent='';setStatus('Cleared',true);};
+</script>
+</body>
+</html>

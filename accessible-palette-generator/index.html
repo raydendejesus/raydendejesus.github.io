@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accessible Palette Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  h2 { font-size:1rem; color:#94a3b8; }
+  .wrap { max-width:920px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:9px 14px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .accent { background:var(--accent); color:#0b1120; border:none; font-weight:600; }
+  .palette { display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .sw { flex:1; min-width:90px; height:100px; border-radius:12px; border:1px solid #1f2937; display:flex; align-items:flex-end; justify-content:center; padding:8px; font-family:monospace; font-size:.8rem; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-size:.85rem; }
+  th,td { text-align:left; padding:8px; border-bottom:1px solid #1f2937; }
+  .pill { padding:3px 9px; border-radius:8px; font-size:.78rem; }
+  .ok { background:#052e16; color:#4ade80; }
+  .no { background:#3b0a0a; color:#f87171; }
+  .cell { display:inline-block; width:18px; height:18px; border-radius:4px; vertical-align:middle; border:1px solid #1f2937; margin-right:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Accessible Palette Generator</h1>
+  <div class="panel">
+    <button id="gen" class="accent">Generate palette</button>
+    <button id="harmony">Toggle harmony (<span id="hmode">analogous</span>)</button>
+    <div class="palette" id="palette"></div>
+  </div>
+  <div class="panel">
+    <h2>Contrast pairs (WCAG AA = 4.5 for normal text)</h2>
+    <table><thead><tr><th>Foreground</th><th>Background</th><th>Ratio</th><th>AA</th><th>AAA</th></tr></thead><tbody id="pairs"></tbody></table>
+  </div>
+</div>
+<script>
+let mode='analogous';
+const modes=['analogous','complementary','triadic','random'];
+function hslToRgb(h,s,l){
+  h/=360;s/=100;l/=100;
+  let r,g,b;
+  if(s===0){r=g=b=l;}else{
+    const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+    const hue=(t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    r=hue(h+1/3); g=hue(h); b=hue(h-1/3);
+  }
+  return [Math.round(r*255),Math.round(g*255),Math.round(b*255)];
+}
+function toHex(r){ return '#'+r.map(v=>v.toString(16).padStart(2,'0')).join(''); }
+function lum(rgb){ const a=rgb.map(v=>{v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);}); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
+function contrast(a,b){ const L1=lum(a),L2=lum(b); return (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05); }
+function hexToRgb(h){ h=h.replace('#',''); const n=parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+let palette=[];
+function generate(){
+  const base=Math.floor(Math.random()*360);
+  const sat=55+Math.random()*30;
+  let hues;
+  if(mode==='analogous') hues=[base-40,base-20,base,base+20,base+40];
+  else if(mode==='complementary') hues=[base,base+15,base+180,base+195,base+30];
+  else if(mode==='triadic') hues=[base,base+120,base+240,base+60,base+180];
+  else hues=Array.from({length:5},()=>Math.random()*360);
+  const lights=[88,68,52,36,20];
+  palette=hues.map((h,i)=>toHex(hslToRgb(((h%360)+360)%360, sat, lights[i])));
+  render();
+}
+function render(){
+  const pe=document.getElementById('palette'); pe.innerHTML='';
+  palette.forEach(c=>{
+    const d=document.createElement('div'); d.className='sw'; d.style.background=c;
+    const rgb=hexToRgb(c); d.style.color=lum(rgb)>0.3?'#000':'#fff'; d.textContent=c;
+    d.title='Click to copy'; d.onclick=()=>{ navigator.clipboard.writeText(c); const o=d.textContent; d.textContent='Copied!'; setTimeout(()=>d.textContent=c,800); };
+    pe.appendChild(d);
+  });
+  const tb=document.getElementById('pairs'); tb.innerHTML='';
+  for(let i=0;i<palette.length;i++) for(let j=0;j<palette.length;j++){
+    if(i===j) continue;
+    const r=contrast(hexToRgb(palette[i]),hexToRgb(palette[j]));
+    if(r<2) continue; // skip near-identical, keep table useful
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="cell" style="background:${palette[i]}"></span>${palette[i]}</td>
+      <td><span class="cell" style="background:${palette[j]}"></span>${palette[j]}</td>
+      <td>${r.toFixed(2)}</td>
+      <td><span class="pill ${r>=4.5?'ok':'no'}">${r>=4.5?'Pass':'Fail'}</span></td>
+      <td><span class="pill ${r>=7?'ok':'no'}">${r>=7?'Pass':'Fail'}</span></td>`;
+    tb.appendChild(tr);
+  }
+}
+document.getElementById('gen').onclick=generate;
+document.getElementById('harmony').onclick=()=>{ mode=modes[(modes.indexOf(mode)+1)%modes.length]; document.getElementById('hmode').textContent=mode; generate(); };
+generate();
+</script>
+</body>
+</html>

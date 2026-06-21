@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL WHERE Builder</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:920px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  input, select { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:8px; padding:8px; font-size:.9rem; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  button.sec { background:#1f2937; color:#e2e8f0; }
+  .del { background:#7f1d1d; color:#fecaca; padding:6px 11px; }
+  .cond { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .cond .conn { width:70px; }
+  .cond .field { flex:1; min-width:110px; }
+  .cond .op { width:130px; }
+  .cond .val { flex:1; min-width:110px; }
+  .out { font-family:ui-monospace,monospace; font-size:1rem; word-break:break-word; background:#0b1120; padding:12px; border-radius:10px; border:1px solid #1f2937; color:#86efac; }
+  .row { display:flex; gap:8px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>SQL WHERE Builder</h1>
+  <div class="panel">
+    <div id="conds"></div>
+    <button class="sec" onclick="addCond()">+ Condition</button>
+  </div>
+  <div class="panel">
+    <label>WHERE clause</label>
+    <div class="out" id="out"></div>
+    <div class="row"><button onclick="copyOut()">Copy</button></div>
+  </div>
+</div>
+<script>
+  var ops = ['=','!=','>','>=','<','<=','LIKE','NOT LIKE','IN','NOT IN','IS NULL','IS NOT NULL'];
+  function addCond(field, op, val) {
+    var c = document.getElementById('conds');
+    var div = document.createElement('div'); div.className = 'cond';
+    var first = c.children.length === 0;
+    var conn = document.createElement('select'); conn.className='conn';
+    ['AND','OR'].forEach(function(x){ var o=document.createElement('option'); o.textContent=x; conn.appendChild(o); });
+    conn.onchange = gen;
+    if (first) conn.style.visibility = 'hidden';
+    div.appendChild(conn);
+    var f = document.createElement('input'); f.className='field'; f.placeholder='field'; f.value=field||''; f.oninput=gen; div.appendChild(f);
+    var o = document.createElement('select'); o.className='op';
+    ops.forEach(function(x){ var op2=document.createElement('option'); op2.textContent=x; if(x===op)op2.selected=true; o.appendChild(op2); });
+    o.onchange = function(){ toggleVal(div); gen(); };
+    div.appendChild(o);
+    var v = document.createElement('input'); v.className='val'; v.placeholder='value'; v.value=val||''; v.oninput=gen; div.appendChild(v);
+    var b = document.createElement('button'); b.className='del'; b.textContent='×';
+    b.onclick = function(){ div.remove(); reflow(); gen(); };
+    div.appendChild(b);
+    c.appendChild(div);
+    toggleVal(div); gen();
+  }
+  function toggleVal(div) {
+    var op = div.querySelector('.op').value;
+    var v = div.querySelector('.val');
+    v.style.display = (op === 'IS NULL' || op === 'IS NOT NULL') ? 'none' : '';
+  }
+  function reflow() {
+    var divs = document.querySelectorAll('.cond');
+    divs.forEach(function(d,i){ d.querySelector('.conn').style.visibility = i===0 ? 'hidden' : 'visible'; });
+  }
+  function quote(op, val) {
+    if (op === 'IN' || op === 'NOT IN') {
+      var items = val.split(',').map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){
+        return /^-?\d+(\.\d+)?$/.test(x) ? x : "'" + x.replace(/'/g,"''") + "'";
+      });
+      return '(' + items.join(', ') + ')';
+    }
+    if (/^-?\d+(\.\d+)?$/.test(val)) return val;
+    if (val === 'true' || val === 'false' || val === 'NULL') return val;
+    return "'" + val.replace(/'/g,"''") + "'";
+  }
+  function gen() {
+    reflow();
+    var divs = document.querySelectorAll('.cond');
+    var parts = [];
+    divs.forEach(function(d,i){
+      var field = d.querySelector('.field').value.trim();
+      var op = d.querySelector('.op').value;
+      var val = d.querySelector('.val').value.trim();
+      if (!field) return;
+      var clause;
+      if (op === 'IS NULL' || op === 'IS NOT NULL') clause = field + ' ' + op;
+      else { if (val === '') return; clause = field + ' ' + op + ' ' + quote(op, val); }
+      var conn = d.querySelector('.conn').value;
+      parts.push((parts.length ? conn + ' ' : '') + clause);
+    });
+    document.getElementById('out').textContent = parts.length ? 'WHERE ' + parts.join(' ') : '(no conditions)';
+  }
+  function copyOut(){ navigator.clipboard.writeText(document.getElementById('out').textContent); }
+  addCond('status','=','active');
+  addCond('age','>=','18');
+</script>
+</body>
+</html>

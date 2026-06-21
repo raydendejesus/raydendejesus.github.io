@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake Data Generator</title>
+<style>
+  :root{--accent:#38bdf8;}
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);color:#e2e8f0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;}
+  a.back{color:var(--accent);text-decoration:none;}
+  .wrap{max-width:900px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:.3em 0 .6em;}
+  .panel{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  label{font-size:.9rem;}
+  input[type=number]{width:90px;background:#0b1120;color:#e2e8f0;border:1px solid #1f2937;border-radius:10px;padding:8px;}
+  button{background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px 16px;cursor:pointer;font-weight:600;}
+  button:hover{background:var(--accent);color:#04222e;}
+  .copy{background:var(--accent);color:#04222e;border:none;}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid #1f2937;}
+  th{color:var(--accent);}
+  .scroll{overflow-x:auto;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← back</a>
+  <h1>Fake Data Generator</h1>
+  <div class="panel">
+    <div class="row">
+      <label>Rows <input type="number" id="count" value="10" min="1" max="500"></label>
+      <button id="gen">Regenerate</button>
+      <button class="copy" id="copyJson">Copy JSON</button>
+      <button class="copy" id="copyCsv">Copy CSV</button>
+    </div>
+  </div>
+  <div class="panel scroll">
+    <table id="tbl"></table>
+  </div>
+</div>
+<script>
+  const first=["Liam","Olivia","Noah","Emma","Ava","Ethan","Sophia","Mason","Isabella","Lucas","Mia","Aria","Leo","Zoe","Kai","Nora","Owen","Lily","Eli","Maya"];
+  const last=["Smith","Johnson","Brown","Garcia","Miller","Davis","Lopez","Wilson","Lee","Walker","Hall","Young","King","Wright","Scott","Green","Adams","Baker","Nelson","Carter"];
+  const streets=["Maple St","Oak Ave","Pine Rd","Cedar Ln","Elm Dr","Birch Way","Sunset Blvd","Lake View","Hill Rd","River St"];
+  const cities=["Austin","Denver","Portland","Boston","Seattle","Miami","Chicago","Phoenix","Dallas","Atlanta"];
+  const states=["TX","CO","OR","MA","WA","FL","IL","AZ","GA","NY"];
+  const domains=["example.com","mail.com","test.org","demo.net","inbox.io"];
+  const ri=a=>a[Math.floor(Math.random()*a.length)];
+  const rn=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  function gen(){
+    const n=Math.max(1,Math.min(500,parseInt(document.getElementById('count').value)||1));
+    const rows=[];
+    for(let i=0;i<n;i++){
+      const f=ri(first), l=ri(last);
+      rows.push({
+        name:`${f} ${l}`,
+        email:`${f.toLowerCase()}.${l.toLowerCase()}${rn(1,99)}@${ri(domains)}`,
+        phone:`(${rn(200,999)}) ${rn(200,999)}-${String(rn(0,9999)).padStart(4,'0')}`,
+        address:`${rn(1,9999)} ${ri(streets)}, ${ri(cities)}, ${ri(states)} ${String(rn(10000,99999))}`
+      });
+    }
+    window._rows=rows;
+    const cols=Object.keys(rows[0]);
+    let html='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+    html+=rows.map(r=>'<tr>'+cols.map(c=>`<td>${r[c]}</td>`).join('')+'</tr>').join('');
+    document.getElementById('tbl').innerHTML=html;
+  }
+  function fb(b){const t=b.textContent;b.textContent='Copied!';setTimeout(()=>b.textContent=t,1200);}
+  document.getElementById('gen').onclick=gen;
+  document.getElementById('copyJson').onclick=async function(){await navigator.clipboard.writeText(JSON.stringify(window._rows,null,2));fb(this);};
+  document.getElementById('copyCsv').onclick=async function(){
+    const cols=Object.keys(window._rows[0]);
+    const csv=[cols.join(','),...window._rows.map(r=>cols.map(c=>`"${r[c]}"`).join(','))].join('\n');
+    await navigator.clipboard.writeText(csv);fb(this);
+  };
+  gen();
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duration Calculator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:720px; margin:0 auto; }
+  h1,h2 { font-weight:600; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  label { color:#94a3b8; font-size:13px; }
+  input,select { padding:9px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:15px; }
+  input[type=number] { width:80px; }
+  .dur { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+  .dur label { display:flex; flex-direction:column; gap:5px; }
+  .seg { display:flex; gap:8px; margin:12px 0; }
+  .seg button { padding:8px 14px; background:#1f2937; border:1px solid #334155; color:#e2e8f0; border-radius:8px; cursor:pointer; }
+  .seg button.active { border-color:var(--accent); background:#0b2a3a; }
+  .result { color:var(--accent); font-family:ui-monospace,monospace; font-size:16px; margin-top:10px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Duration Calculator</h1>
+
+  <div class="panel">
+    <h2>Add / subtract a duration to a date</h2>
+    <div class="row">
+      <label>Start <input id="base" type="datetime-local" step="1"></label>
+    </div>
+    <div class="seg">
+      <button id="opAdd" class="active">add</button>
+      <button id="opSub">subtract</button>
+    </div>
+    <div class="dur">
+      <label>days <input id="d" type="number" value="0"></label>
+      <label>hours <input id="h" type="number" value="0"></label>
+      <label>minutes <input id="m" type="number" value="0"></label>
+      <label>seconds <input id="s" type="number" value="0"></label>
+    </div>
+    <div class="result" id="r1"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Time between two datetimes</h2>
+    <div class="row" style="gap:16px">
+      <label>From <input id="from" type="datetime-local" step="1"></label>
+      <label>To <input id="to" type="datetime-local" step="1"></label>
+    </div>
+    <div class="result" id="r2"></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function nowLocal(off){const d=new Date(Date.now()+(off||0));const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+let op=1;
+$('opAdd').onclick=()=>{op=1;$('opAdd').classList.add('active');$('opSub').classList.remove('active');calc1();};
+$('opSub').onclick=()=>{op=-1;$('opSub').classList.add('active');$('opAdd').classList.remove('active');calc1();};
+function calc1(){
+  const v=$('base').value; if(!v){$('r1').textContent='';return;}
+  const d=new Date(v);
+  const delta=((+$('d').value||0)*86400 + (+$('h').value||0)*3600 + (+$('m').value||0)*60 + (+$('s').value||0))*1000*op;
+  const res=new Date(d.getTime()+delta);
+  $('r1').textContent='= '+res.toString();
+}
+['base','d','h','m','s'].forEach(id=>$(id).addEventListener('input',calc1));
+
+function breakdown(ms){
+  const neg=ms<0; ms=Math.abs(ms);
+  let s=Math.floor(ms/1000);
+  const days=Math.floor(s/86400);s-=days*86400;
+  const hrs=Math.floor(s/3600);s-=hrs*3600;
+  const mins=Math.floor(s/60);s-=mins*60;
+  const totalSec=Math.floor(ms/1000);
+  return {neg,days,hrs,mins,secs:s,totalSec,
+    totalH:(ms/3600000),totalM:(ms/60000),totalD:(ms/86400000)};
+}
+function calc2(){
+  const a=$('from').value,b=$('to').value;
+  if(!a||!b){$('r2').textContent='';return;}
+  const ms=new Date(b)-new Date(a);
+  const bd=breakdown(ms);
+  $('r2').innerHTML =
+    `${bd.neg?'-':''}${bd.days}d ${bd.hrs}h ${bd.mins}m ${bd.secs}s<br>`+
+    `${bd.neg?'-':''}${bd.totalSec.toLocaleString()} seconds<br>`+
+    `${bd.neg?'-':''}${bd.totalM.toFixed(2)} minutes · ${bd.totalH.toFixed(2)} hours · ${bd.totalD.toFixed(3)} days`;
+}
+['from','to'].forEach(id=>$(id).addEventListener('input',calc2));
+
+$('base').value=nowLocal();
+$('from').value=nowLocal();
+$('to').value=nowLocal(2*3600*1000+30*60*1000);
+calc1(); calc2();
+</script>
+</body>
+</html>

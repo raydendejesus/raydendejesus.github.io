@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown Table Generator</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:960px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:8px 14px; font-weight:600; cursor:pointer; }
+  button.sec { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+  table { border-collapse:collapse; }
+  td { padding:2px; }
+  input { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:7px; width:120px; font-size:.85rem; }
+  thead input { font-weight:700; color:var(--accent); }
+  select { background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:4px; font-size:.8rem; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:10px; padding:12px; overflow:auto; font-size:.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Markdown Table Generator</h1>
+  <div class="panel">
+    <div class="row">
+      <button class="sec" onclick="addRow()">+ Row</button>
+      <button class="sec" onclick="addCol()">+ Column</button>
+      <button class="sec" onclick="delRow()">− Row</button>
+      <button class="sec" onclick="delCol()">− Column</button>
+    </div>
+    <div style="overflow:auto"><table id="grid"></table></div>
+  </div>
+  <div class="panel">
+    <label>Markdown output</label>
+    <pre id="out"></pre>
+    <button onclick="copyOut()">Copy</button>
+  </div>
+</div>
+<script>
+  var rows = 3, cols = 3;
+  var data = [['Name','Role','City'],['Ada','Engineer','London'],['Linus','Hacker','Helsinki']];
+  var align = ['left','left','left'];
+  function cell(r,c){ return (data[r] && data[r][c] != null) ? data[r][c] : ''; }
+  function build() {
+    var g = document.getElementById('grid'); g.innerHTML = '';
+    var thead = document.createElement('thead');
+    var tr = document.createElement('tr');
+    for (var c=0;c<cols;c++) {
+      var td = document.createElement('td');
+      var inp = document.createElement('input');
+      inp.value = cell(0,c);
+      (function(c){ inp.oninput = function(){ setCell(0,c,this.value); }; })(c);
+      td.appendChild(inp);
+      var sel = document.createElement('select');
+      ['left','center','right'].forEach(function(a){ var o=document.createElement('option'); o.value=a; o.textContent=a; if(align[c]===a)o.selected=true; sel.appendChild(o); });
+      (function(c){ sel.onchange = function(){ align[c]=this.value; gen(); }; })(c);
+      var wrap = document.createElement('div'); wrap.appendChild(inp); wrap.appendChild(document.createElement('br')); wrap.appendChild(sel);
+      td.innerHTML=''; td.appendChild(wrap);
+      tr.appendChild(td);
+    }
+    thead.appendChild(tr); g.appendChild(thead);
+    var tb = document.createElement('tbody');
+    for (var r=1;r<rows;r++) {
+      var trr = document.createElement('tr');
+      for (var cc=0;cc<cols;cc++) {
+        var tdd = document.createElement('td');
+        var i2 = document.createElement('input'); i2.value = cell(r,cc);
+        (function(r,cc){ i2.oninput = function(){ setCell(r,cc,this.value); }; })(r,cc);
+        tdd.appendChild(i2); trr.appendChild(tdd);
+      }
+      tb.appendChild(trr);
+    }
+    g.appendChild(tb);
+    gen();
+  }
+  function setCell(r,c,v){ if(!data[r]) data[r]=[]; data[r][c]=v; gen(); }
+  function addRow(){ rows++; build(); }
+  function addCol(){ cols++; align.push('left'); build(); }
+  function delRow(){ if(rows>2){ rows--; build(); } }
+  function delCol(){ if(cols>1){ cols--; align.pop(); build(); } }
+  function alignMark(a){ return a==='center'?':---:':a==='right'?'---:':':---'; }
+  function gen() {
+    var lines = [];
+    var header = [];
+    for (var c=0;c<cols;c++) header.push(cell(0,c).replace(/\|/g,'\\|'));
+    lines.push('| ' + header.join(' | ') + ' |');
+    var seps = [];
+    for (var c2=0;c2<cols;c2++) seps.push(alignMark(align[c2]));
+    lines.push('| ' + seps.join(' | ') + ' |');
+    for (var r=1;r<rows;r++) {
+      var cells = [];
+      for (var c3=0;c3<cols;c3++) cells.push(cell(r,c3).replace(/\|/g,'\\|'));
+      lines.push('| ' + cells.join(' | ') + ' |');
+    }
+    document.getElementById('out').textContent = lines.join('\n');
+  }
+  function copyOut(){ navigator.clipboard.writeText(document.getElementById('out').textContent); }
+  build();
+</script>
+</body>
+</html>

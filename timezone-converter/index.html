@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timezone Converter</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px; }
+  a { color:var(--accent); text-decoration:none; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1,h2 { font-weight:600; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-top:16px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  input,select { padding:10px 12px; border-radius:10px; border:1px solid #1f2937; background:#0b1120; color:#e2e8f0; font-size:16px; }
+  button { padding:9px 14px; background:#1f2937; border:1px solid #334155; color:#e2e8f0; border-radius:8px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  table { width:100%; border-collapse:collapse; margin-top:6px; }
+  td { padding:9px 10px; border-bottom:1px solid #1f2937; font-size:15px; }
+  td.z { color:#94a3b8; }
+  td.t { font-family:ui-monospace,monospace; color:var(--accent); }
+  td.x button { padding:2px 8px; font-size:12px; }
+  .add { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">← back</a>
+  <h1>Timezone Converter</h1>
+
+  <div class="panel">
+    <h2>Source time</h2>
+    <div class="row">
+      <input id="dt" type="datetime-local" step="60">
+      <select id="srcZone"></select>
+      <button id="useNow">use now</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Converted</h2>
+    <table id="out"></table>
+    <div class="add">
+      <select id="addZone"></select>
+      <button id="addBtn">+ add zone</button>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const COMMON=[
+  "UTC","America/Los_Angeles","America/Denver","America/Chicago","America/New_York",
+  "America/Sao_Paulo","Europe/London","Europe/Paris","Europe/Berlin","Europe/Moscow",
+  "Asia/Dubai","Asia/Kolkata","Asia/Shanghai","Asia/Tokyo","Australia/Sydney","Pacific/Auckland"
+];
+const localZone=Intl.DateTimeFormat().resolvedOptions().timeZone;
+let zones=[localZone,"UTC","America/New_York","Europe/London","Asia/Tokyo"]
+  .filter((z,i,a)=>a.indexOf(z)===i);
+const allZones=[localZone,...COMMON].filter((z,i,a)=>a.indexOf(z)===i);
+
+function fillSelect(sel){sel.innerHTML='';allZones.forEach(z=>{const o=document.createElement('option');o.value=z;o.textContent=z;sel.appendChild(o);});}
+fillSelect($('srcZone')); fillSelect($('addZone'));
+$('srcZone').value=localZone;
+
+// Get the UTC instant for a given wall-clock time interpreted in a target zone.
+function zonedToUTC(y,mo,d,h,mi,zone){
+  // Make a guess, then correct using the offset the zone reports for that guess.
+  const guess=Date.UTC(y,mo-1,d,h,mi);
+  const off=offsetMs(guess,zone);
+  return guess-off;
+}
+function offsetMs(utcMs,zone){
+  const dtf=new Intl.DateTimeFormat('en-US',{timeZone:zone,hour12:false,
+    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const parts=dtf.formatToParts(new Date(utcMs)).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  let hh=parts.hour==='24'?'00':parts.hour;
+  const asUTC=Date.UTC(+parts.year,+parts.month-1,+parts.day,+hh,+parts.minute,+parts.second);
+  return asUTC-utcMs;
+}
+function fmtIn(utcMs,zone){
+  return new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short',year:'numeric',month:'short',
+    day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZoneName:'short'}).format(new Date(utcMs));
+}
+function currentUTC(){
+  const v=$('dt').value; if(!v)return null;
+  const [date,time]=v.split('T');
+  const [y,mo,d]=date.split('-').map(Number);
+  const [h,mi]=time.split(':').map(Number);
+  return zonedToUTC(y,mo,d,h,mi,$('srcZone').value);
+}
+function render(){
+  const utc=currentUTC();
+  const out=$('out'); out.innerHTML='';
+  if(utc===null)return;
+  zones.forEach((z,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="z">${z}</td><td class="t">${fmtIn(utc,z)}</td><td class="x"><button>✕</button></td>`;
+    tr.querySelector('button').onclick=()=>{zones.splice(i,1);render();};
+    out.appendChild(tr);
+  });
+}
+$('addBtn').onclick=()=>{const z=$('addZone').value;if(!zones.includes(z))zones.push(z);render();};
+$('useNow').onclick=()=>{seedNow();render();};
+$('dt').addEventListener('input',render);
+$('srcZone').addEventListener('change',render);
+function seedNow(){
+  const d=new Date();const p=n=>String(n).padStart(2,'0');
+  $('dt').value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+seedNow(); render();
+setInterval(()=>{ /* keep live if user hasn't changed input lately is complex; refresh display only */ },60000);
+</script>
+</body>
+</html>

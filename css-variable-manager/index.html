@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Variable Manager</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:860px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  .var { display:flex; gap:12px; align-items:center; margin-bottom:10px; }
+  input[type=color] { width:48px; height:36px; border:none; border-radius:8px; background:none; cursor:pointer; }
+  input[type=text] { background:#0b1120; border:1px solid #1f2937; color:#e2e8f0; border-radius:8px; padding:8px; font-family:monospace; }
+  .name { width:200px; }
+  .val { width:120px; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .del { color:#f87171; padding:6px 10px; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:12px; padding:16px; overflow:auto; font-family:monospace; color:#7dd3fc; }
+  .chip { width:24px; height:24px; border-radius:6px; border:1px solid #1f2937; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>CSS Variable Manager</h1>
+  <div class="panel">
+    <div id="list"></div>
+    <button id="add">+ Add variable</button>
+  </div>
+  <div class="panel">
+    <button id="copy" style="float:right">Copy :root</button>
+    <h2 style="margin-top:0;font-size:1rem;color:#94a3b8">Export</h2>
+    <pre id="out"></pre>
+  </div>
+</div>
+<script>
+let vars=[
+  {name:'--primary',val:'#38bdf8'},
+  {name:'--surface',val:'#111827'},
+  {name:'--text',val:'#e2e8f0'}
+];
+const list=document.getElementById('list'), out=document.getElementById('out');
+function render(){
+  list.innerHTML='';
+  vars.forEach((v,i)=>{
+    const row=document.createElement('div'); row.className='var';
+    const chip=document.createElement('div'); chip.className='chip'; chip.style.background=v.val;
+    const name=document.createElement('input'); name.type='text'; name.className='name'; name.value=v.name;
+    const color=document.createElement('input'); color.type='color'; color.value=/^#[0-9a-f]{6}$/i.test(v.val)?v.val:'#000000';
+    const val=document.createElement('input'); val.type='text'; val.className='val'; val.value=v.val;
+    const del=document.createElement('button'); del.className='del'; del.textContent='✕';
+    name.oninput=()=>{ v.name=name.value; build(); };
+    color.oninput=()=>{ v.val=color.value; val.value=color.value; chip.style.background=color.value; build(); };
+    val.oninput=()=>{ v.val=val.value; chip.style.background=val.value; if(/^#[0-9a-f]{6}$/i.test(val.value))color.value=val.value; build(); };
+    del.onclick=()=>{ vars.splice(i,1); render(); };
+    row.append(chip,name,color,val,del);
+    list.appendChild(row);
+  });
+  build();
+}
+function build(){
+  out.textContent=':root {\n'+vars.map(v=>'  '+v.name+': '+v.val+';').join('\n')+'\n}';
+}
+document.getElementById('add').onclick=()=>{ vars.push({name:'--new-color',val:'#7c3aed'}); render(); };
+document.getElementById('copy').onclick=function(){ navigator.clipboard.writeText(out.textContent); const o=this.textContent; this.textContent='Copied!'; setTimeout(()=>this.textContent=o,900); };
+render();
+</script>
+</body>
+</html>

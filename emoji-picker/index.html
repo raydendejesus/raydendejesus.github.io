@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emoji Picker</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:820px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:16px 18px; margin-bottom:18px; }
+  input { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:10px; padding:11px; font-size:1rem; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(54px,1fr)); gap:6px; }
+  .em { font-size:1.7rem; text-align:center; padding:8px 0; border-radius:10px; cursor:pointer; background:#0b1120; border:1px solid transparent; }
+  .em:hover { border-color:var(--accent); background:#1e293b; }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--accent); color:#0b1120; padding:10px 18px; border-radius:10px; font-weight:600; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .cat { color:#94a3b8; font-size:.8rem; margin:14px 0 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Emoji Picker</h1>
+  <div class="panel"><input id="q" placeholder="Search emoji by keyword..." oninput="render()"></div>
+  <div class="panel" id="out"></div>
+</div>
+<div class="toast" id="toast">Copied!</div>
+<script>
+  var emoji = [
+    ['😀','grin smile happy face'],['😃','smile happy face'],['😄','laugh happy smile'],['😁','beam grin'],['😆','laugh squint'],
+    ['😅','sweat laugh'],['😂','tears joy laugh cry'],['🤣','rofl rolling laugh'],['😊','blush happy smile'],['😇','angel halo'],
+    ['🙂','slight smile'],['😉','wink'],['😍','heart eyes love'],['😘','kiss blow love'],['😋','yum tongue tasty'],
+    ['😎','cool sunglasses'],['🤩','star struck wow'],['🥳','party celebrate'],['😏','smirk'],['😒','unamused meh'],
+    ['😔','sad pensive'],['😢','cry sad tear'],['😭','sob cry bawl'],['😤','huff angry steam'],['😠','angry mad'],
+    ['😡','rage angry red'],['🤬','swear curse angry'],['😱','scream fear shock'],['😨','fear scared'],['😰','anxious sweat'],
+    ['😴','sleep zzz tired'],['🤤','drool'],['😷','mask sick'],['🤒','sick thermometer'],['🤕','hurt bandage'],
+    ['🤢','nausea sick'],['🤮','vomit sick'],['🥵','hot heat'],['🥶','cold freeze'],['🤯','mind blown explode'],
+    ['🤔','think hmm'],['🤫','shush quiet'],['🤐','zip mouth quiet'],['😶','no mouth blank'],['🙄','eye roll'],
+    ['😬','grimace awkward'],['🤥','liar lie nose'],['😈','devil evil grin'],['👿','devil angry'],['💀','skull dead death'],
+    ['💩','poop'],['🤡','clown'],['👻','ghost boo'],['👽','alien ufo'],['🤖','robot bot'],
+    ['❤️','heart love red'],['🧡','orange heart'],['💛','yellow heart'],['💚','green heart'],['💙','blue heart'],
+    ['💜','purple heart'],['🖤','black heart'],['💔','broken heart'],['💕','two hearts love'],['💯','hundred perfect score'],
+    ['🔥','fire lit hot'],['✨','sparkle shine'],['⭐','star'],['🌟','glowing star'],['⚡','lightning bolt fast'],
+    ['👍','thumbs up like yes good'],['👎','thumbs down no bad'],['👏','clap applause'],['🙌','raise hands praise'],['🙏','pray thanks please'],
+    ['👋','wave hi hello bye'],['🤝','handshake deal'],['✌️','peace victory'],['🤞','fingers crossed luck'],['💪','muscle strong flex'],
+    ['👀','eyes look watch'],['🧠','brain smart'],['🎉','party tada celebrate'],['🎊','confetti party'],['🎁','gift present'],
+    ['✅','check yes done correct'],['❌','cross no wrong x'],['⚠️','warning caution'],['❓','question'],['❗','exclamation'],
+    ['💡','idea bulb light'],['📌','pin'],['📍','location pin'],['🔑','key'],['🔒','lock secure'],
+    ['🚀','rocket launch fast'],['⏰','alarm clock time'],['💻','laptop computer code'],['🖥️','desktop computer'],['📱','phone mobile'],
+    ['🐶','dog puppy'],['🐱','cat kitten'],['🦊','fox'],['🐻','bear'],['🐼','panda'],
+    ['🦁','lion'],['🐸','frog'],['🐵','monkey'],['🦄','unicorn'],['🐝','bee'],
+    ['🍕','pizza food'],['🍔','burger food'],['🍟','fries food'],['🌮','taco food'],['🍣','sushi food'],
+    ['☕','coffee'],['🍺','beer drink'],['🍷','wine drink'],['🎂','cake birthday'],['🍎','apple fruit']
+  ];
+  function render() {
+    var q = document.getElementById('q').value.toLowerCase().trim();
+    var out = document.getElementById('out'); out.innerHTML = '';
+    var grid = document.createElement('div'); grid.className='grid';
+    emoji.forEach(function(e){
+      if (q && e[1].indexOf(q) < 0 && e[0].indexOf(q) < 0) return;
+      var d = document.createElement('div'); d.className='em'; d.textContent = e[0]; d.title = e[1];
+      d.onclick = function(){ copy(e[0]); };
+      grid.appendChild(d);
+    });
+    if (!grid.children.length) { out.innerHTML = '<div style="color:#64748b">No matches.</div>'; return; }
+    out.appendChild(grid);
+  }
+  var tt;
+  function copy(s){
+    navigator.clipboard.writeText(s);
+    var t = document.getElementById('toast'); t.textContent = 'Copied ' + s; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(function(){ t.classList.remove('show'); }, 1000);
+  }
+  render();
+</script>
+</body>
+</html>

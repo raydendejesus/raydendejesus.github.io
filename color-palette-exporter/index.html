@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color Palette Exporter</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120); color:#e2e8f0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; }
+  a.back { color:var(--accent); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:24px; margin:12px 0 4px; }
+  p.sub { color:#94a3b8; margin:0 0 20px; }
+  .wrap { max-width:920px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  .swatches { display:flex; flex-wrap:wrap; gap:12px; }
+  .sw { background:#0b1120; border:1px solid #1f2937; border-radius:10px; padding:10px; width:130px; }
+  .sw .chip { height:60px; border-radius:8px; border:1px solid #00000040; }
+  .sw input[type=color] { width:100%; height:30px; border:none; background:none; margin-top:8px; cursor:pointer; }
+  .sw input[type=text] { width:100%; margin-top:6px; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937; border-radius:6px; padding:5px 6px; font-size:12px; font-family:ui-monospace,monospace; }
+  .sw .rm { color:#f87171; font-size:12px; cursor:pointer; margin-top:6px; display:inline-block; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+  button { background:var(--accent); color:#04263a; border:none; border-radius:10px; padding:9px 15px; font-weight:600; cursor:pointer; font-size:14px; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  button:active { transform:translateY(1px); }
+  .fmt { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .fmt button.active { background:var(--accent); color:#04263a; }
+  .fmt button { background:transparent; color:var(--accent); border:1px solid #1f2937; }
+  pre { background:#0b1120; border:1px solid #1f2937; border-radius:8px; padding:12px; overflow:auto; font-size:13px; font-family:ui-monospace,monospace; max-height:340px; white-space:pre; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">&larr; back</a>
+  <h1>Color Palette Exporter</h1>
+  <p class="sub">Build a palette, then export as CSS vars, SCSS, JSON, or a Tailwind config.</p>
+  <div class="panel">
+    <div class="swatches" id="swatches"></div>
+    <div class="row">
+      <button id="addBtn">+ Add color</button>
+      <span style="color:#64748b;font-size:13px">Names become the export keys.</span>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="fmt" id="fmt">
+      <button data-f="css" class="active">CSS vars</button>
+      <button data-f="scss">SCSS</button>
+      <button data-f="json">JSON</button>
+      <button data-f="tailwind">Tailwind</button>
+    </div>
+    <pre id="output"></pre>
+    <div class="row"><button id="copyBtn">Copy</button></div>
+  </div>
+</div>
+<script>
+let palette=[
+  {name:'primary',hex:'#38bdf8'},
+  {name:'secondary',hex:'#818cf8'},
+  {name:'accent',hex:'#f472b6'},
+  {name:'dark',hex:'#0b1120'},
+];
+let fmt='css';
+const swatches=document.getElementById('swatches');
+function renderSwatches(){
+  swatches.innerHTML='';
+  palette.forEach((c,i)=>{
+    const d=document.createElement('div'); d.className='sw';
+    d.innerHTML=`<div class="chip" style="background:${c.hex}"></div>
+      <input type="color" value="${c.hex}">
+      <input type="text" value="${c.name}">
+      <span class="rm">remove</span>`;
+    const [color,name]=d.querySelectorAll('input');
+    color.addEventListener('input',e=>{ palette[i].hex=e.target.value; d.querySelector('.chip').style.background=e.target.value; renderOut(); });
+    name.addEventListener('input',e=>{ palette[i].name=e.target.value; renderOut(); });
+    d.querySelector('.rm').addEventListener('click',()=>{ palette.splice(i,1); renderSwatches(); renderOut(); });
+    swatches.appendChild(d);
+  });
+}
+function key(n){ return (n||'color').trim().replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase()||'color'; }
+function renderOut(){
+  const out=document.getElementById('output');
+  let s='';
+  if(fmt==='css'){
+    s=':root {\n'+palette.map(c=>`  --${key(c.name)}: ${c.hex};`).join('\n')+'\n}';
+  } else if(fmt==='scss'){
+    s=palette.map(c=>`$${key(c.name)}: ${c.hex};`).join('\n');
+  } else if(fmt==='json'){
+    const o={}; palette.forEach(c=>o[key(c.name)]=c.hex); s=JSON.stringify(o,null,2);
+  } else if(fmt==='tailwind'){
+    const lines=palette.map(c=>`        '${key(c.name)}': '${c.hex}',`).join('\n');
+    s=`module.exports = {\n  theme: {\n    extend: {\n      colors: {\n${lines}\n      },\n    },\n  },\n};`;
+  }
+  out.textContent=s;
+}
+document.getElementById('addBtn').addEventListener('click',()=>{
+  palette.push({name:'color-'+(palette.length+1),hex:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0')});
+  renderSwatches(); renderOut();
+});
+document.querySelectorAll('#fmt button').forEach(b=>b.addEventListener('click',()=>{
+  fmt=b.dataset.f;
+  document.querySelectorAll('#fmt button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); renderOut();
+}));
+document.getElementById('copyBtn').addEventListener('click', async e=>{
+  try{ await navigator.clipboard.writeText(document.getElementById('output').textContent); }catch{}
+  const b=e.target,t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);
+});
+renderSwatches(); renderOut();
+</script>
+</body>
+</html>

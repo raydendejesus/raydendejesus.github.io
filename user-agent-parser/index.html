@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User-Agent Parser</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color:var(--accent); text-decoration:none; }
+  h1 { font-size:1.5rem; margin:.2rem 0 1rem; }
+  .wrap { max-width:820px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:.85rem; color:#94a3b8; margin-bottom:6px; }
+  textarea { width:100%; background:#0b1120; color:#e2e8f0; border:1px solid #1f2937;
+    border-radius:10px; padding:10px; font-family:ui-monospace, monospace; font-size:.9rem; min-height:70px; resize:vertical; }
+  button { background:var(--accent); color:#0b1120; border:none; border-radius:10px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  button.sec { background:#1f2937; color:#e2e8f0; }
+  .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .grid { display:grid; grid-template-columns:140px 1fr; gap:8px 14px; font-size:.95rem; }
+  .grid div:nth-child(odd){ color:#94a3b8; }
+  .val { font-family:ui-monospace, monospace; color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>User-Agent Parser</h1>
+  <div class="panel">
+    <label>User-Agent string</label>
+    <textarea id="ua"></textarea>
+    <div class="row">
+      <button onclick="run()">Parse</button>
+      <button class="sec" onclick="useMine()">Use mine</button>
+      <button class="sec" onclick="copyMine()">Copy mine</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="grid" id="out"></div>
+  </div>
+</div>
+<script>
+  function run() {
+    var ua = document.getElementById('ua').value;
+    var r = parse(ua);
+    var html = '';
+    Object.keys(r).forEach(function(k){
+      html += '<div>' + k + '</div><div class="val">' + esc(r[k]) + '</div>';
+    });
+    document.getElementById('out').innerHTML = html;
+  }
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function parse(ua) {
+    var browser = 'Unknown', bver = '';
+    var m;
+    if (/Edg\//.test(ua)) { browser='Microsoft Edge'; m=ua.match(/Edg\/([\d.]+)/); }
+    else if (/OPR\/|Opera/.test(ua)) { browser='Opera'; m=ua.match(/(?:OPR|Opera)\/([\d.]+)/); }
+    else if (/SamsungBrowser/.test(ua)) { browser='Samsung Internet'; m=ua.match(/SamsungBrowser\/([\d.]+)/); }
+    else if (/Firefox\//.test(ua)) { browser='Firefox'; m=ua.match(/Firefox\/([\d.]+)/); }
+    else if (/Chrome\//.test(ua)) { browser='Chrome'; m=ua.match(/Chrome\/([\d.]+)/); }
+    else if (/Version\/.*Safari/.test(ua)) { browser='Safari'; m=ua.match(/Version\/([\d.]+)/); }
+    else if (/MSIE|Trident/.test(ua)) { browser='Internet Explorer'; m=ua.match(/(?:MSIE |rv:)([\d.]+)/); }
+    if (m) bver = m[1];
+
+    var os = 'Unknown';
+    if (/Windows NT 10/.test(ua)) os='Windows 10/11';
+    else if (/Windows NT 6\.3/.test(ua)) os='Windows 8.1';
+    else if (/Windows NT 6\.1/.test(ua)) os='Windows 7';
+    else if (/Windows/.test(ua)) os='Windows';
+    else if (/Android ([\d.]+)/.test(ua)) os='Android ' + ua.match(/Android ([\d.]+)/)[1];
+    else if (/iPhone OS ([\d_]+)/.test(ua)) os='iOS ' + ua.match(/iPhone OS ([\d_]+)/)[1].replace(/_/g,'.');
+    else if (/iPad.*OS ([\d_]+)/.test(ua)) os='iPadOS ' + ua.match(/OS ([\d_]+)/)[1].replace(/_/g,'.');
+    else if (/Mac OS X ([\d_]+)/.test(ua)) os='macOS ' + ua.match(/Mac OS X ([\d_]+)/)[1].replace(/_/g,'.');
+    else if (/CrOS/.test(ua)) os='ChromeOS';
+    else if (/Linux/.test(ua)) os='Linux';
+
+    var device='Desktop';
+    if (/iPad|Tablet/.test(ua)) device='Tablet';
+    else if (/Mobile|iPhone|Android.*Mobile/.test(ua)) device='Mobile';
+    else if (/Android/.test(ua)) device='Tablet';
+
+    var engine='Unknown';
+    if (/Gecko\/|Firefox/.test(ua) && !/like Gecko/.test(ua)) engine='Gecko';
+    else if (/AppleWebKit/.test(ua)) engine = /Edg\/|Chrome\//.test(ua) ? 'Blink' : 'WebKit';
+    else if (/Trident/.test(ua)) engine='Trident';
+
+    return { Browser:browser, 'Browser version':bver||'—', OS:os, Device:device, Engine:engine, 'Raw length':ua.length + ' chars' };
+  }
+  function useMine(){ document.getElementById('ua').value = navigator.userAgent; run(); }
+  function copyMine(){ navigator.clipboard.writeText(navigator.userAgent); }
+  useMine();
+</script>
+</body>
+</html>

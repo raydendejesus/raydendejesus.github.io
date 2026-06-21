@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Color Picker</title>
+<style>
+  :root { --accent:#38bdf8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:32px;
+    background:radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120);
+    color:#e2e8f0; font-family:system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  h1 { font-size:1.5rem; margin:8px 0 24px; }
+  .wrap { max-width:900px; margin:0 auto; }
+  .panel { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:24px; margin-bottom:20px; }
+  input[type=file] { color:#94a3b8; }
+  canvas { max-width:100%; border:1px solid #1f2937; border-radius:12px; cursor:crosshair; display:block; }
+  .result { display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+  .chip { width:80px; height:80px; border-radius:12px; border:1px solid #1f2937; }
+  .vals div { font-family:monospace; margin:4px 0; }
+  button { background:#1f2937; color:#e2e8f0; border:1px solid #374151; border-radius:8px; padding:7px 12px; cursor:pointer; margin-left:8px; }
+  button:hover { border-color:var(--accent); }
+  .hint { color:#94a3b8; font-size:.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="../">&larr; back</a>
+  <h1>Image Color Picker</h1>
+  <div class="panel">
+    <input type="file" id="file" accept="image/*">
+    <p class="hint">Load an image, then click any pixel to sample its color.</p>
+    <canvas id="cv" width="400" height="200"></canvas>
+  </div>
+  <div class="panel">
+    <div class="result">
+      <div class="chip" id="chip"></div>
+      <div class="vals">
+        <div>HEX: <span id="hex">--</span> <button id="cHex">Copy</button></div>
+        <div>RGB: <span id="rgb">--</span> <button id="cRgb">Copy</button></div>
+        <div>HSL: <span id="hsl">--</span> <button id="cHsl">Copy</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const file=document.getElementById('file'), cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const chip=document.getElementById('chip'), hexEl=document.getElementById('hex'), rgbEl=document.getElementById('rgb'), hslEl=document.getElementById('hsl');
+file.addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxW=820, scale=Math.min(1, maxW/img.width);
+      cv.width=Math.round(img.width*scale); cv.height=Math.round(img.height*scale);
+      ctx.drawImage(img,0,0,cv.width,cv.height);
+    };
+    img.src=ev.target.result;
+  };
+  r.readAsDataURL(f);
+});
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b); let h,s,l=(max+min)/2;
+  if(max===min){h=s=0;}else{
+    const d=max-min; s=l>0.5?d/(2-max-min):d/(max+min);
+    switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;}
+    h/=6;
+  }
+  return [Math.round(h*360),Math.round(s*100),Math.round(l*100)];
+}
+cv.addEventListener('click',e=>{
+  const rect=cv.getBoundingClientRect();
+  const x=Math.round((e.clientX-rect.left)*(cv.width/rect.width));
+  const y=Math.round((e.clientY-rect.top)*(cv.height/rect.height));
+  const p=ctx.getImageData(x,y,1,1).data;
+  const hex='#'+[p[0],p[1],p[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
+  const hsl=rgbToHsl(p[0],p[1],p[2]);
+  chip.style.background=hex;
+  hexEl.textContent=hex;
+  rgbEl.textContent=`rgb(${p[0]}, ${p[1]}, ${p[2]})`;
+  hslEl.textContent=`hsl(${hsl[0]}, ${hsl[1]}%, ${hsl[2]}%)`;
+});
+function copyBtn(id,getter){
+  document.getElementById(id).onclick=function(){
+    const t=getter(); if(t==='--')return;
+    navigator.clipboard.writeText(t);
+    const o=this.textContent; this.textContent='Copied!'; setTimeout(()=>this.textContent=o,900);
+  };
+}
+copyBtn('cHex',()=>hexEl.textContent);
+copyBtn('cRgb',()=>rgbEl.textContent);
+copyBtn('cHsl',()=>hslEl.textContent);
+</script>
+</body>
+</html>
